@@ -1,0 +1,55 @@
+{
+  "name": "snatchgame",
+  "version": "0.0.1-alpha",
+  "description": "Multiplayer real-time click battle game built with Colyseus.io and Vue 3",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "build:server": "cd server && npm run build",
+    "build:client": "cd client && npm run build",
+    "build": "npm run build:server && npm run build:client",
+    "start:server": "cd server && npm start",
+    "start:client": "cd client && npm start",
+    "start": "concurrently \"npm run start:server\" \"npm run start:client\"",
+    "generate-types": "cd client && npm run generate-types",
+    "clean": "rm -rf node_modules server/node_modules client/node_modules server/lib client/dist",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f"
+  },
+  "keywords": [
+    "multiplayer",
+    "game",
+    "colyseus",
+    "vue3",
+    "typescript",
+    "real-time",
+    "websockets",
+    "local-network"
+  ],
+  "author": "NucleoServices",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/username/snatchgame.git"
+  },
+  "bugs": {
+    "url": "https://github.com/username/snatchgame/issues"
+  },
+  "homepage": "https://github.com/username/snatchgame#readme",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
