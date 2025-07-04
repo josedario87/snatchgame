@@ -72,16 +72,39 @@ nginx-proxy-manager   # Proxy reverso y balanceador
 - `/server` → API Servidor Colyseus
 
 ## UI de Administración
-**Funcionalidades:**
-- Estadísticas en tiempo real de partidas activas
-- Leaderboard global
-- Monitor de estado de jugadores
+**Arquitectura:**
+- Servidor Express independiente (Puerto 3001)
+- Comunicación SSE con servidor Colyseus
+- Actualización de estado cada 500ms (polling)
+- Una interfaz principal (múltiples conexiones opcionales)
+
+**Funcionalidades principales:**
+- Dashboard con estadísticas en tiempo real:
+  - Cantidad de jugadores conectados
+  - Cantidad de partidas activas  
+  - Ronda actual del juego global
+  - Estados: esperando jugadores, pausa, juego terminado
+  - Nombres de las rondas
+- Panel de control:
+  - Expulsar jugadores individuales y todos (con notificaciones)
+  - Control de rondas global (avanzar/retroceder en todas las salas)
+  - Pausar/reanudar juego
+  - Cancelar partidas de grupos específicos
+- Lista de jugadores detallada:
+  - Nombre, sala, rol del juego y tipo de productor
+  - Tokens actuales (🦃 pavos, ☕ café, 🌽 maíz)
+  - Estado de conexión en tiempo real
+- Sistema de notificaciones a clientes:
+  - Expulsión con redirección automática
+  - Cambios de ronda globales
+  - Pausas y reanudaciones
 - Panel de debugging para IT profesional
 - Transparencia total del estado del servidor
 
 **Usuarios objetivo:**
 - Admin no-técnico: Vista simple de estadísticas
 - IT profesional: Vista detallada de debugging
+- Comentaristas deportivos: Información clara para narración en vivo
 
 ## Comandos Importantes
 
@@ -175,6 +198,48 @@ client/src/types/
 2. **Tipos auxiliares**: Se copian manualmente cuando se añaden/modifican
 3. **Consistencia**: Usar nombres idénticos entre server y client
 
+## API Admin - Arquitectura Técnica
+
+### Endpoints Implementados
+**Servidor Colyseus (Puerto 2567):**
+- `GET /api/admin/stats` - Estadísticas en tiempo real usando `matchMaker.query()`
+- `POST /api/admin/kick-player` - Expulsar jugador específico con notificación
+- `POST /api/admin/kick-all-players` - Expulsar todos los jugadores con notificaciones
+- `POST /api/admin/pause-game` - Pausar todas las partidas activas
+- `POST /api/admin/resume-game` - Reanudar partidas pausadas
+- `POST /api/admin/advance-round` - Avanzar ronda globalmente
+- `POST /api/admin/previous-round` - Retroceder ronda globalmente
+- `POST /api/admin/cancel-game` - Cancelar partidas específicas o todas
+
+### Métodos GameRoom Implementados
+- `getInspectData()` - Datos completos para el admin (compatible con monitor oficial)
+- `pauseGame()` - Pausar juego con broadcast a clientes
+- `resumeGame()` - Reanudar juego con broadcast a clientes
+- `advanceRound()` - Avanzar ronda con límite máximo 10
+- `previousRound()` - Retroceder ronda con límite mínimo 1
+- `_forceClientDisconnect(sessionId)` - Expulsar jugador con notificación
+- `_forceDisconnectAllClients()` - Expulsar todos con notificaciones
+
+### Comunicación Cliente-Servidor
+**Mensajes del servidor a clientes:**
+- `adminKicked` - Notificación de expulsión individual
+- `gamePaused` - Notificación de pausa del juego
+- `gameResumed` - Notificación de reanudación del juego
+- `roundChanged` - Notificación de cambio de ronda global
+
+**Manejo en el cliente:**
+- Auto-redirección a home al recibir `adminKicked`
+- Alerts informativos para cambios de estado
+- Logging detallado de eventos administrativos
+
+### Principios de Diseño
+- **API Oficial Colyseus**: Sin hacks de variables globales
+- **matchMaker.query()**: Acceso seguro a información de salas
+- **matchMaker.remoteRoomCall()**: Ejecución remota de métodos
+- **Type Safety**: Sincronización completa TypeScript
+- **Error Handling**: Try/catch en todos los endpoints
+- **Graceful Notifications**: Delay de 1 segundo para procesar mensajes
+
 ## Notas Específicas
 - **Offline**: Sin dependencias externas de internet
 - **Microservicios**: Arquitectura separada por responsabilidades
@@ -185,3 +250,4 @@ client/src/types/
 - **Variables de Entorno**: Configuración por ambiente (.env)
 - **Logging**: Detallado para debugging profesional
 - **Tipos TypeScript**: Auto-generación con schema-codegen + copiar tipos auxiliares manualmente
+- **Admin Dashboard**: Completamente funcional con control total del juego

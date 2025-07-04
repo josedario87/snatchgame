@@ -28,6 +28,26 @@ const onJoinGame = (client: any) => {
   gameClient.value = client
   currentScreen.value = 'game'
   logger.info('Transitioning to game screen')
+  
+  // Handle admin kick notification
+  client.onAdminKicked((data: any) => {
+    // Show alert message
+    alert(`🚫 ${data.message}`)
+    
+    // Return to home screen
+    currentScreen.value = 'home'
+    gameClient.value = null
+    
+    logger.info('Player kicked by admin, returned to home screen')
+  })
+
+  // Handle round change notification
+  client.onRoundChanged((data: any) => {
+    // Show alert message
+    alert(`🎯 ${data.message}`)
+    
+    logger.info('Round changed by admin:', data)
+  })
 }
 </script>
 

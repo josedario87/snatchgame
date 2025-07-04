@@ -1,6 +1,6 @@
 # 🎮 SnatchGame
 
-[![Version](https://img.shields.io/badge/version-0.0.5--alpha-orange.svg)](https://github.com/username/snatchgame)
+[![Version](https://img.shields.io/badge/version-0.0.8--alpha-orange.svg)](https://github.com/username/snatchgame)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-green.svg)](https://nodejs.org/)
 [![Vue.js](https://img.shields.io/badge/vue-3.0+-brightgreen.svg)](https://vuejs.org/)
@@ -8,7 +8,7 @@
 
 Un juego multijugador educativo que simula la evolución de instituciones y cooperación, basado en el **"Snatch Game"** de **Elinor Ostrom**. Construido con **Colyseus.io** y **Vue 3** para redes locales.
 
-> ⚠️ **Proyecto en desarrollo** - Actualmente en fase Alpha (v0.0.5-alpha)
+> ✨ **Admin Dashboard Completo** - Versión Alpha (v0.0.8-alpha) con interfaz de administración profesional
 
 ## 🎓 Sobre el Juego
 
@@ -30,6 +30,8 @@ Un juego multijugador educativo que simula la evolución de instituciones y coop
 - **📱 Responsive** - Interfaz optimizada para desktop y móvil
 - **🎯 Red local** - Funciona completamente offline
 - **📈 Progresión por rondas** - 5 rondas con reglas evolutivas
+- **🎛️ Admin Dashboard** - Interfaz completa de administración y monitoreo
+- **🔔 Notificaciones** - Sistema completo de alertas para jugadores
 
 ## 🎮 Cómo Jugar
 
@@ -92,7 +94,7 @@ cd server && npm install
 # Cliente  
 cd ../client && npm install
 
-# Admin (próximamente)
+# Admin
 cd ../admin && npm install
 ```
 
@@ -116,7 +118,7 @@ npm run dev
 cd client
 npm run dev
 
-# Terminal 3 - Admin (opcional)
+# Terminal 3 - Admin Dashboard
 cd admin
 npm run dev
 ```
@@ -124,7 +126,8 @@ npm run dev
 ### URLs de desarrollo
 - **Cliente**: http://localhost:3000
 - **Servidor**: http://localhost:2567 
-- **Admin**: http://localhost:3001 (próximamente)
+- **Admin Dashboard**: http://localhost:3001
+- **Monitor Colyseus**: http://localhost:2567/monitor
 
 ### Producción
 ```bash
@@ -155,6 +158,45 @@ docker-compose up -d
 - **MakeOfferForm**: Formulario con botones +/- intuitivos
 - **OfferModal**: Modal flotante para crear ofertas dirigidas
 
+## 🎛️ Admin Dashboard
+
+El **Admin Dashboard** proporciona control completo y monitoreo en tiempo real del juego, diseñado tanto para administradores técnicos como para comentaristas no-técnicos.
+
+### 📊 Características Principales
+
+#### **Información en Tiempo Real**
+- **👥 Lista de Jugadores Detallada**: Nombre, sala, rol, tipo de productor y tokens actuales
+- **📈 Estadísticas Globales**: Jugadores conectados, partidas activas, ronda actual
+- **🎯 Estado del Juego**: En progreso, pausado, esperando jugadores
+- **🔄 Actualización Automática**: SSE con polling cada 500ms
+
+#### **Control de Jugadores**
+- **🚫 Expulsar Jugador Individual**: Con notificación al cliente y redirección automática
+- **🚫🚫 Expulsar Todos los Jugadores**: Vaciar todas las salas con notificaciones apropiadas
+- **👤 Información Detallada**: Ver tokens específicos (🦃 pavos, ☕ café, 🌽 maíz)
+
+#### **Control del Juego**
+- **⏸️ Pausar Juego**: Pausar todas las partidas activas
+- **▶️ Reanudar Juego**: Reanudar partidas pausadas
+- **⏮️ Retroceder Ronda**: Cambio global a ronda anterior (mínimo 1)
+- **⏭️ Avanzar Ronda**: Cambio global a ronda siguiente (máximo 10)
+
+#### **Notificaciones a Clientes**
+- **🔔 Expulsión**: Mensaje personalizado y redirección automática
+- **🎯 Cambio de Ronda**: Notificación inmediata de nuevas rondas
+- **⏸️ Estado del Juego**: Alertas de pausa/reanudación
+
+### 🎯 Usuarios Objetivo
+- **👨‍💼 Administrador No-Técnico**: Vista limpia con estadísticas esenciales
+- **👨‍💻 IT Profesional**: Información de debugging y estado técnico detallado
+- **🎙️ Comentaristas Deportivos**: Información clara para narración en vivo
+
+### 🏗️ Arquitectura Técnica
+- **API Oficial Colyseus**: Uso de `matchMaker.query()` y `matchMaker.remoteRoomCall()`
+- **Comunicación Bidireccional**: SSE para updates, HTTP para control
+- **Sin Variables Globales**: Implementación limpia y mantenible
+- **Type Safety**: Sincronización completa de tipos TypeScript
+
 ## ⚙️ Configuración
 
 ### Variables de Entorno
@@ -183,7 +225,7 @@ PORT=2567
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Client UI     │    │  Colyseus       │    │   Admin UI      │
-│   (Vue 3)       │◄──►│   Server        │◄──►│   (Vue 3)       │
+│   (Vue 3)       │◄──►│   Server        │◄──►│   (Vue 3 + SSE) │
 │   Port 3000     │    │   Port 2567     │    │   Port 3001     │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
@@ -194,6 +236,11 @@ PORT=2567
                     │  Nginx Proxy    │
                     └─────────────────┘
 ```
+
+### Comunicación Admin
+- **SSE (Server-Sent Events)**: Servidor → Admin UI
+- **Polling**: Actualización cada 500ms
+- **Control**: Admin → Servidor (HTTP endpoints)
 
 ### Sincronización de Tipos
 ```bash
@@ -247,7 +294,14 @@ snatchgame/
 │   │   └── main.ts
 │   ├── server.js           # Express server (producción)
 │   └── README.md           # Documentación del cliente
-├── 📁 admin/               # Admin dashboard (próximamente)
+├── 📁 admin/               # Admin dashboard
+│   ├── src/
+│   │   ├── components/     # Componentes Vue admin
+│   │   ├── services/       # Admin service
+│   │   │   └── adminService.ts
+│   │   └── main.ts
+│   ├── server.js           # Express server (producción)
+│   └── README.md           # Documentación del admin
 ├── 🎮 gameRules.md         # Reglas del juego detalladas
 ├── 🐳 docker-compose.yml   # Orquestación Docker
 ├── 📋 CLAUDE.md            # Guía de desarrollo
@@ -333,7 +387,15 @@ npm run start
 - [ ] 📊 Gráficos y visualizaciones
 
 ### Infraestructura
-- [ ] 📈 UI de administración completa
+- [x] 📈 UI de administración completa
+  - [x] Dashboard con estadísticas en tiempo real
+  - [x] Panel de control para administrar partidas
+  - [x] Sistema de expulsión de jugadores
+  - [x] Pausa/reanudación de partidas
+  - [x] Control de rondas globales
+  - [x] Información detallada de jugadores con tokens
+  - [x] Notificaciones automáticas a clientes
+  - [ ] Historial de partidas anteriores
 - [ ] 🐳 Docker en producción
 - [ ] 📱 PWA support
 - [ ] 🌍 Multi-idioma (EN/ES)

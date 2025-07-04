@@ -268,4 +268,148 @@ export class GameRoom extends Room<GameState> {
     onDispose() {
         console.log(`GameRoom ${this.roomId} disposed`);
     }
+
+    // Method for admin monitoring - used by Colyseus monitor and admin API
+    getInspectData() {
+        const stateSize = JSON.stringify(this.state).length;
+        const roomElapsedTime = this.clock.elapsedTime;
+        
+        // Gather client information
+        const clients = this.clients.map((client) => ({
+            sessionId: client.sessionId,
+            elapsedTime: roomElapsedTime - (client as any)._joinedAt || 0
+        }));
+
+        // Return comprehensive room data
+        return {
+            roomId: this.roomId,
+            name: 'game',
+            clients: clients.length,
+            maxClients: this.maxClients,
+            locked: this.locked,
+            state: this.state,
+            stateSize,
+            clients: clients,
+            elapsedTime: roomElapsedTime,
+            metadata: {
+                gamePhase: this.state.gamePhase,
+                gameStarted: this.state.gameStarted,
+                round: this.state.round,
+                playerCount: this.state.players.size,
+                activeOffers: this.state.activeTradeOffers.length
+            }
+        };
+    }
+
+    // Admin methods for game control
+    pauseGame() {
+        if (this.state.gameStarted && this.state.gamePhase !== 'paused') {
+            this.state.gamePhase = 'paused';
+            console.log(`⏸️ Game paused in room ${this.roomId} by admin`);
+            
+            // Broadcast pause message to all clients
+            this.broadcast("gamePaused", { 
+                message: "El juego ha sido pausado por el administrador",
+                timestamp: Date.now()
+            });
+        }
+    }
+
+    resumeGame() {
+        if (this.state.gameStarted && this.state.gamePhase === 'paused') {
+            this.state.gamePhase = 'trading'; // Resume to trading phase
+            console.log(`▶️ Game resumed in room ${this.roomId} by admin`);
+            
+            // Broadcast resume message to all clients
+            this.broadcast("gameResumed", { 
+                message: "El juego ha sido reanudado por el administrador",
+                timestamp: Date.now()
+            });
+        }
+    }
+
+    _forceClientDisconnect(sessionId: string) {
+        const client = this.clients.find(c => c.sessionId === sessionId);
+        if (client) {
+            console.log(`🚫 Admin force disconnect player ${sessionId} from room ${this.roomId}`);
+            
+            // Send notification to the specific client before disconnecting
+            client.send("adminKicked", { 
+                message: "Has sido expulsado del juego por el administrador",
+                reason: "admin_kick",
+                timestamp: Date.now()
+            });
+
+            // Give client time to process the message, then disconnect
+            setTimeout(() => {
+                client.leave(4000); // Force disconnect with code 4000
+            }, 1000);
+        } else {
+            throw new Error(`Player ${sessionId} not found in room ${this.roomId}`);
+        }
+    }
+
+    _forceDisconnectAllClients() {
+        console.log(`🚫🚫 Admin force disconnect ALL players from room ${this.roomId}`);
+        
+        if (this.clients.length === 0) {
+            return { success: true, kickedPlayers: 0 };
+        }
+
+        // Send notification to all clients first
+        this.broadcast("adminKicked", {
+            message: "Todos los jugadores han sido expulsados por el administrador",
+            reason: "admin_kick_all",
+            timestamp: Date.now()
+        });
+
+        const kickedCount = this.clients.length;
+
+        // Give clients time to process the message, then disconnect all
+        setTimeout(() => {
+            // Create a copy of clients array since it will be modified during iteration
+            const clientsToDisconnect = [...this.clients];
+            clientsToDisconnect.forEach(client => {
+                client.leave(4000); // Force disconnect with code 4000
+            });
+        }, 1000);
+
+        return { success: true, kickedPlayers: kickedCount };
+    }
+
+    advanceRound() {
+        const oldRound = this.state.round;
+        this.state.round = Math.min(oldRound + 1, 10); // Max 10 rounds
+        const newRound = this.state.round;
+        
+        console.log(`⏭️ Round advanced from ${oldRound} to ${newRound} in room ${this.roomId}`);
+        
+        // Broadcast round change to all clients
+        this.broadcast("roundChanged", {
+            oldRound,
+            newRound,
+            message: `Ronda ${newRound} - Cambio realizado por el administrador`,
+            timestamp: Date.now()
+        });
+
+        return { success: true, newRound, oldRound };
+    }
+
+    previousRound() {
+        const oldRound = this.state.round;
+        this.state.round = Math.max(oldRound - 1, 1); // Min round 1
+        const newRound = this.state.round;
+        
+        console.log(`⏮️ Round went back from ${oldRound} to ${newRound} in room ${this.roomId}`);
+        
+        // Broadcast round change to all clients
+        this.broadcast("roundChanged", {
+            oldRound,
+            newRound,
+            message: `Ronda ${newRound} - Cambio realizado por el administrador`,
+            timestamp: Date.now()
+        });
+
+        return { success: true, newRound, oldRound };
+    }
 }

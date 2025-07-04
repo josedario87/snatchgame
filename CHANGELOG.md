@@ -11,10 +11,35 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Ronda 2-5: Implementar reglas evolutivas
 - Sistema de Judge rotativo
 - Shame tokens y penalizaciones
-- UI de administración completa
 - Efectos de sonido
 - PWA support
 - Multi-idioma
+
+## [0.0.8-alpha] - 2025-07-04
+
+### Added
+- **Admin Dashboard Completo**: UI de administración con información detallada de jugadores
+- **Control de Jugadores**: Expulsar jugadores individuales y todos los jugadores
+- **Control de Rondas Global**: Avanzar y retroceder rondas en todas las salas simultáneamente
+- **Control de Juego**: Pausar y reanudar juegos desde el admin
+- **Notificaciones a Clientes**: Los jugadores reciben notificaciones cuando son expulsados o cuando cambian las rondas
+- **Información Detallada de Jugadores**: Nombre, sala, rol, tipo de productor y tokens actuales
+- **Redirección Automática**: Los clientes expulsados vuelven automáticamente al home
+
+### Changed
+- **API Oficial de Colyseus**: Refactorizado todos los endpoints admin para usar `matchMaker.query()` y `matchMaker.remoteRoomCall()`
+- **Arquitectura sin Variables Globales**: Eliminado el hack de variables globales por implementación oficial
+- **UI Admin Mejorada**: Información más clara y organizada para comentaristas no-técnicos
+
+### Fixed
+- **Notificación de Expulsión**: Los clientes ahora reciben notificación correcta cuando son expulsados
+- **URLs del Admin Service**: Corregido para llamar al servidor Colyseus (puerto 2567) en lugar del admin (puerto 3001)
+- **Expulsión Masiva**: Todos los jugadores reciben notificación apropiada cuando se expulsan todos
+
+### Technical
+- **GameRoom Methods**: Implementado `pauseGame()`, `resumeGame()`, `advanceRound()`, `previousRound()`, `_forceClientDisconnect()`, `_forceDisconnectAllClients()`, `getInspectData()`
+- **Client Notifications**: Manejo de mensajes `adminKicked`, `gamePaused`, `gameResumed`, `roundChanged`
+- **Type Safety**: Mantenida sincronización de tipos TypeScript entre servidor y clientes
 
 ## [0.0.5-alpha] - 2025-01-04
 

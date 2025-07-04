@@ -15,6 +15,8 @@ export class GameClient {
   // Event callbacks
   private onStateChangeCallbacks: ((state: GameState) => void)[] = []
   private onGamePhaseChangeCallbacks: ((phase: string) => void)[] = []
+  private onAdminKickedCallbacks: ((data: any) => void)[] = []
+  private onRoundChangedCallbacks: ((data: any) => void)[] = []
 
   constructor() {
     const serverUrl = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567'
@@ -61,10 +63,36 @@ export class GameClient {
       this.room.onLeave((code) => {
         logger.info('Left room with code:', code)
         this.isConnected = false
+        
+        // Handle forced disconnect by admin
+        if (code === 4000) {
+          logger.info('Disconnected by admin (code 4000)')
+        }
       })
 
       this.room.onError((code, message) => {
         logger.error('Room error:', { code, message })
+      })
+
+      // Handle admin kick message
+      this.room.onMessage("adminKicked", (data) => {
+        logger.info('Received admin kick message:', data)
+        this.onAdminKickedCallbacks.forEach(callback => callback(data))
+      })
+
+      // Handle game pause/resume messages
+      this.room.onMessage("gamePaused", (data) => {
+        logger.info('Game paused by admin:', data)
+      })
+
+      this.room.onMessage("gameResumed", (data) => {
+        logger.info('Game resumed by admin:', data)
+      })
+
+      // Handle round change messages
+      this.room.onMessage("roundChanged", (data) => {
+        logger.info('Round changed by admin:', data)
+        this.onRoundChangedCallbacks.forEach(callback => callback(data))
       })
 
       return this.room
@@ -118,6 +146,30 @@ export class GameClient {
       const index = this.onGamePhaseChangeCallbacks.indexOf(callback)
       if (index > -1) {
         this.onGamePhaseChangeCallbacks.splice(index, 1)
+      }
+    }
+  }
+
+  onAdminKicked(callback: (data: any) => void): () => void {
+    this.onAdminKickedCallbacks.push(callback)
+    
+    // Return unsubscribe function
+    return () => {
+      const index = this.onAdminKickedCallbacks.indexOf(callback)
+      if (index > -1) {
+        this.onAdminKickedCallbacks.splice(index, 1)
+      }
+    }
+  }
+
+  onRoundChanged(callback: (data: any) => void): () => void {
+    this.onRoundChangedCallbacks.push(callback)
+    
+    // Return unsubscribe function
+    return () => {
+      const index = this.onRoundChangedCallbacks.indexOf(callback)
+      if (index > -1) {
+        this.onRoundChangedCallbacks.splice(index, 1)
       }
     }
   }

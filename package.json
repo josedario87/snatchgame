@@ -1,6 +1,6 @@
 {
   "name": "snatchgame",
-  "version": "0.0.1-alpha",
+  "version": "0.0.8-alpha",
   "description": "Multiplayer real-time click battle game built with Colyseus.io and Vue 3",
   "private": true,
   "scripts": {
