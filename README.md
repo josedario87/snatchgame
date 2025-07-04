@@ -1,31 +1,54 @@
 # 🎮 SnatchGame
 
-[![Version](https://img.shields.io/badge/version-0.0.1--alpha-orange.svg)](https://github.com/username/snatchgame)
+[![Version](https://img.shields.io/badge/version-0.0.5--alpha-orange.svg)](https://github.com/username/snatchgame)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-green.svg)](https://nodejs.org/)
 [![Vue.js](https://img.shields.io/badge/vue-3.0+-brightgreen.svg)](https://vuejs.org/)
 [![Colyseus](https://img.shields.io/badge/colyseus-0.16+-purple.svg)](https://colyseus.io/)
 
-Un juego multijugador en tiempo real de velocidad de clicks, construido con **Colyseus.io** y **Vue 3** para redes locales.
+Un juego multijugador educativo que simula la evolución de instituciones y cooperación, basado en el **"Snatch Game"** de **Elinor Ostrom**. Construido con **Colyseus.io** y **Vue 3** para redes locales.
 
-> ⚠️ **Proyecto en desarrollo** - Actualmente en fase Alpha (v0.0.1-alpha)
+> ⚠️ **Proyecto en desarrollo** - Actualmente en fase Alpha (v0.0.5-alpha)
 
-## 🚀 Características
+## 🎓 Sobre el Juego
 
-- **🌐 Multijugador en tiempo real** - Hasta 8 jugadores simultáneos
-- **⚡ Sincronización instantánea** - Estado compartido con Colyseus.io
-- **🔥 Juego de velocidad** - Compite presionando el botón más rápido
-- **📱 Responsive** - Funciona en desktop y móvil
-- **🛠️ Sistema de debugging** - Logs configurables para desarrollo
-- **🎯 Red local** - Sin dependencias de internet
-- **📊 UI de administración** - Panel para monitorear partidas
+**Snatch or Share** es una simulación interactiva que permite a los participantes experimentar cómo las reglas, la confianza y los arreglos institucionales afectan la cooperación en intercambios descentralizados. Basado en el trabajo de la Nobel de Economía **Elinor Ostrom** sobre gobernanza de recursos comunes.
 
-## 🎯 Cómo Jugar
+### 🎯 Objetivos Educativos
+- Demostrar la evolución de instituciones en el intercambio
+- Experimentar con diferentes sistemas de gobernanza  
+- Entender el rol de la confianza en la cooperación
+- Aplicar conceptos de teoría de juegos en tiempo real
 
-1. **Únete a una partida** - Presiona "Unirse a partida"
-2. **Espera jugadores** - Mínimo 2 jugadores para comenzar
-3. **¡Click Battle!** - Presiona el botón gigante lo más rápido posible
-4. **Compite** - Ve el scoreboard en tiempo real
+## 🚀 Características del Juego
+
+- **👥 Multijugador exacto** - Salas de exactamente 3 jugadores
+- **🎭 Roles únicos** - Productor de Pavos, Café o Maíz
+- **⚡ Tiempo real** - Sincronización instantánea con Colyseus.io
+- **🔄 Sistema de intercambio** - Ofertas, negociaciones y "snatch"
+- **📊 Cálculo automático** - Puntuación basada en tokens
+- **📱 Responsive** - Interfaz optimizada para desktop y móvil
+- **🎯 Red local** - Funciona completamente offline
+- **📈 Progresión por rondas** - 5 rondas con reglas evolutivas
+
+## 🎮 Cómo Jugar
+
+### Preparación
+1. **Únete a una sala** - Exactamente 3 jugadores requeridos
+2. **Rol asignado** - Recibes un rol de productor único al azar
+3. **Tokens iniciales** - Comienzas con 5 tokens de tu tipo
+
+### Mecánicas de Juego
+1. **Haz ofertas** - Click en otros jugadores para ofertar
+2. **Responde ofertas** - Acepta, rechaza o haz "snatch"
+3. **Acumula puntos** - Tokens propios = 1pt, ajenos = 2pts
+4. **Estrategia** - Coopera o compite según las reglas de la ronda
+
+### Progresión (5 Rondas)
+- **Ronda 1-2**: Estado de naturaleza (sin reglas)
+- **Ronda 3**: Reglas contraproductivas
+- **Ronda 4**: Normas sociales (shame tokens)
+- **Ronda 5**: Gobernanza institucional (juez rotativo)
 
 ## 🛠️ Stack Tecnológico
 
@@ -59,17 +82,18 @@ cd snatchgame
 
 ### 2. Instalar dependencias
 ```bash
+# Instalar todas las dependencias automáticamente
+npm run install:all
+
+# O manualmente:
 # Servidor
-cd server
-npm install
+cd server && npm install
 
-# Cliente
-cd ../client
-npm install
+# Cliente  
+cd ../client && npm install
 
-# Admin (opcional)
-cd ../admin
-npm install
+# Admin (próximamente)
+cd ../admin && npm install
 ```
 
 ## 🚀 Ejecución
@@ -99,8 +123,8 @@ npm run dev
 
 ### URLs de desarrollo
 - **Cliente**: http://localhost:3000
-- **Servidor**: http://localhost:2567
-- **Admin**: http://localhost:3001
+- **Servidor**: http://localhost:2567 
+- **Admin**: http://localhost:3001 (próximamente)
 
 ### Producción
 ```bash
@@ -111,16 +135,25 @@ npm run build
 docker-compose up -d
 ```
 
-## 🎮 Demo
+## 🎮 Interfaz del Juego
 
-### Pantalla Principal
-![Home Screen](docs/images/home-screen.png)
+### Vista Desktop
+- **Layout de 2 columnas**: Jugadores a la izquierda, ofertas a la derecha
+- **Jugador actual prominente**: Tarjeta grande en la parte inferior
+- **Otros jugadores compactos**: Tarjetas pequeñas y clickeables
+- **Panel de ofertas**: Scroll customizado con ofertas en tiempo real
 
-### Esperando Jugadores
-![Waiting Screen](docs/images/waiting-screen.png)
+### Vista Móvil  
+- **Layout vertical**: Jugadores arriba, ofertas abajo
+- **Formulario modal**: Ofertas en modal flotante
+- **Botones optimizados**: +/- táctiles para cantidades
+- **Scroll adaptativo**: Altura limitada con navegación suave
 
-### Jugando
-![Game Screen](docs/images/game-screen.png)
+### Componentes Principales
+- **PlayerCard**: Información de jugador con tokens y puntos
+- **TradeOfferCard**: Ofertas con acciones (Accept/Reject/Snatch)
+- **MakeOfferForm**: Formulario con botones +/- intuitivos
+- **OfferModal**: Modal flotante para crear ofertas dirigidas
 
 ## ⚙️ Configuración
 
@@ -187,24 +220,38 @@ npm run test:e2e
 
 ```
 snatchgame/
-├── 📁 server/          # Colyseus.io backend
+├── 📁 server/              # Colyseus.io backend
 │   ├── src/
-│   │   ├── rooms/      # Game rooms
-│   │   ├── schema/     # Data schemas
-│   │   └── index.ts    # Entry point
-│   └── package.json
-├── 📁 client/          # Vue 3 frontend
+│   │   ├── rooms/
+│   │   │   └── GameRoom.ts # Lógica principal del juego
+│   │   ├── app.config.ts   # Configuración Colyseus
+│   │   └── index.ts        # Entry point
+│   └── README.md           # Documentación del servidor
+├── 📁 client/              # Vue 3 frontend  
 │   ├── src/
-│   │   ├── components/ # Vue components
-│   │   ├── services/   # Game client & logger
-│   │   ├── types/      # Auto-generated types
+│   │   ├── components/     # Componentes Vue
+│   │   │   ├── Game.vue    # Componente principal
+│   │   │   ├── PlayerCard.vue
+│   │   │   ├── TradeOfferCard.vue
+│   │   │   ├── MakeOfferForm.vue
+│   │   │   ├── ScrollableOffers.vue
+│   │   │   └── OfferModal.vue
+│   │   ├── services/       # Game client & logger
+│   │   │   ├── gameClient.ts
+│   │   │   └── logger.ts
+│   │   ├── types/          # Auto-generated types
+│   │   │   ├── GameState.ts
+│   │   │   ├── Player.ts
+│   │   │   ├── TradeOffer.ts
+│   │   │   └── TokenInventory.ts
 │   │   └── main.ts
-│   └── package.json
-├── 📁 admin/           # Admin dashboard
-├── 📁 docs/            # Documentation
-├── 🐳 docker-compose.yml
-├── 📋 CLAUDE.md        # Development guide
-└── 📖 README.md        # This file
+│   ├── server.js           # Express server (producción)
+│   └── README.md           # Documentación del cliente
+├── 📁 admin/               # Admin dashboard (próximamente)
+├── 🎮 gameRules.md         # Reglas del juego detalladas
+├── 🐳 docker-compose.yml   # Orquestación Docker
+├── 📋 CLAUDE.md            # Guía de desarrollo
+└── 📖 README.md            # Este archivo
 ```
 
 ## 🤝 Contribuir
@@ -268,13 +315,30 @@ npm run start
 
 ## 📋 Roadmap
 
-- [ ] 🎨 Themes y customización
-- [ ] 🏆 Sistema de logros
-- [ ] 📊 Estadísticas detalladas
-- [ ] 🔊 Efectos de sonido
+### Funcionalidades del Juego
+- [x] 🎮 Ronda 1: Estado de naturaleza (completado)
+- [ ] 🎭 Ronda 2-5: Implementar reglas evolutivas
+- [ ] 👨‍⚖️ Sistema de Judge rotativo
+- [ ] 😔 Shame tokens y penalizaciones
+- [ ] 📊 Estadísticas por ronda
+- [ ] 🏆 Sistema de puntuación final
+
+### Mejoras de UI/UX
+- [x] 📱 Layout responsivo optimizado
+- [x] 🎯 Formulario con botones +/-
+- [x] 🔄 Scroll customizado para ofertas
+- [ ] 🎨 Themes y customización visual
+- [ ] 🔊 Efectos de sonido y feedback
+- [ ] ⚡ Animaciones de transición
+- [ ] 📊 Gráficos y visualizaciones
+
+### Infraestructura
+- [ ] 📈 UI de administración completa
+- [ ] 🐳 Docker en producción
 - [ ] 📱 PWA support
-- [ ] 🌍 Multi-idioma
-- [ ] 🔒 Sistema de autenticación
+- [ ] 🌍 Multi-idioma (EN/ES)
+- [ ] 🔒 Sistema de salas privadas
+- [ ] 📄 Exportar resultados (PDF/CSV)
 
 ## 📄 Licencia
 

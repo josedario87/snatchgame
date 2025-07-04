@@ -8,11 +8,88 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [Unreleased]
 
 ### Planeado
-- Sistema de logros
+- Ronda 2-5: Implementar reglas evolutivas
+- Sistema de Judge rotativo
+- Shame tokens y penalizaciones
+- UI de administración completa
 - Efectos de sonido
 - PWA support
 - Multi-idioma
-- Sistema de autenticación
+
+## [0.0.5-alpha] - 2025-01-04
+
+### Añadido
+- **🎮 Juego Snatch or Share completo**
+  - Implementación del "Snatch Game" de Elinor Ostrom
+  - Sistema de roles únicos: Productor de Pavos, Café, Maíz
+  - Exactamente 3 jugadores por sala
+  - Tokens múltiples (turkey, coffee, corn)
+  - Sistema de puntuación: tokens propios = 1pt, ajenos = 2pts
+
+- **🔄 Sistema de ofertas comerciales**
+  - Ofertas simultáneas entre jugadores
+  - Límite de 2 ofertas por target por jugador
+  - Respuestas: Accept, Reject, Snatch
+  - Cumplimiento parcial automático
+  - Todas las ofertas son públicas
+
+- **🎨 UI/UX completamente rediseñada**
+  - Layout responsivo optimizado (desktop/móvil)
+  - Componentes modulares: PlayerCard, TradeOfferCard, MakeOfferForm
+  - Modal flotante para crear ofertas
+  - Scroll customizado para lista de ofertas
+  - Botones +/- prominentes para cantidades
+  - Input compacto optimizado para números de 3 dígitos
+
+- **📱 Mejoras móviles**
+  - Layout vertical adaptativo
+  - Cards de ofertas horizontales y compactas
+  - Botones táctiles optimizados
+  - Altura diferencial desktop vs móvil
+
+### Changed
+- **🏗️ Arquitectura del servidor**
+  - GameState con múltiples tipos de tokens
+  - Player con rol de productor y tokens individuales
+  - TradeOffer con inventarios de offering/requesting
+  - Asignación automática de roles únicos
+
+- **⚙️ Sistema de tipos**
+  - Regeneración automática desde servidor
+  - TokenInventory schema separado
+  - Interfaces para ofertas comerciales
+  - GameRoomOptions actualizado
+
+- **🎯 Lógica del juego**
+  - Ronda 1: Estado de naturaleza implementado
+  - Ofertas más recientes aparecen arriba
+  - Validación de límites por jugador
+  - Cálculo automático de puntos en tiempo real
+
+### Fixed
+- **🐛 Problemas de layout**
+  - Overflow vertical en desktop eliminado
+  - Altura móvil permite scroll natural
+  - Posicionamiento de elementos mejorado
+
+- **⚡ Rendimiento**
+  - Componentización reduce bundle size
+  - CSS encapsulado por componente
+  - Reactivity optimizada con computed properties
+
+- **📚 Documentación completa**
+  - README.md principal actualizado con enfoque educativo
+  - README.md específico del servidor con API y schemas
+  - README.md específico del cliente con componentes
+  - gameRules.md con lógica detallada del juego
+  - Roadmap actualizado con progreso real
+
+### Technical
+- **📊 Schemas Colyseus**: GameState, Player, TradeOffer, TokenInventory
+- **🧩 Componentes Vue**: 6 componentes modulares especializados
+- **📋 Validación**: Límites de tokens, ofertas y jugadores
+- **🔄 Estado**: Sincronización en tiempo real mejorada
+- **🛠️ Build**: Generación automática de tipos client/server
 
 ## [0.0.1-alpha] - 2025-01-03
 

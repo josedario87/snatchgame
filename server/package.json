@@ -1,6 +1,6 @@
 {
   "name": "snatchgame-server",
-  "version": "0.0.1-alpha",
+  "version": "0.0.5-alpha",
   "description": "SnatchGame multiplayer server using Colyseus",
   "main": "lib/index.js",
   "scripts": {

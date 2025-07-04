@@ -132,6 +132,37 @@ export class GameClient {
     }
   }
 
+  makeOffer(offerData: { 
+    targetId: string, 
+    offering: { turkey: number, coffee: number, corn: number }, 
+    requesting: { turkey: number, coffee: number, corn: number } 
+  }): void {
+    if (this.room && this.gameState?.gamePhase === 'trading') {
+      this.room.send('makeOffer', offerData)
+      logger.info('Trade offer sent:', offerData)
+    } else {
+      logger.info('Trade offer ignored - not in trading phase')
+    }
+  }
+
+  respondToOffer(responseData: { offerId: string, response: string }): void {
+    if (this.room && this.gameState?.gamePhase === 'trading') {
+      this.room.send('respondToOffer', responseData)
+      logger.info('Trade response sent:', responseData)
+    } else {
+      logger.info('Trade response ignored - not in trading phase')
+    }
+  }
+
+  cancelOffer(cancelData: { offerId: string }): void {
+    if (this.room && this.gameState?.gamePhase === 'trading') {
+      this.room.send('cancelOffer', cancelData)
+      logger.info('Trade cancellation sent:', cancelData)
+    } else {
+      logger.info('Trade cancellation ignored - not in trading phase')
+    }
+  }
+
   // Getters
   getCurrentPlayer(): Player | null {
     if (!this.gameState || !this.currentPlayerId) return null

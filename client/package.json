@@ -1,6 +1,6 @@
 {
   "name": "snatchgame-client",
-  "version": "0.0.1-alpha",
+  "version": "0.0.5-alpha",
   "description": "SnatchGame client UI server",
   "main": "server.js",
   "scripts": {

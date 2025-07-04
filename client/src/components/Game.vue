@@ -11,37 +11,63 @@
       </div>
     </div>
 
-    <!-- Playing Phase -->
-    <div v-else-if="gamePhase === 'playing'" class="game-screen">
-      <!-- Scoreboard -->
-      <div class="scoreboard">
-        <div 
-          v-for="player in players" 
-          :key="player.id"
-          class="player-score"
-          :class="{ 'current-player': player.id === currentPlayerId }"
-        >
-          <span class="player-name">{{ player.name }}</span>
-          <span class="score">{{ player.score }}</span>
+    <!-- Trading Phase -->
+    <div v-else-if="gamePhase === 'trading'" class="game-screen">
+      <!-- Game Header -->
+      <div class="game-header">
+        <div class="round-info">
+          <h2>Ronda {{ round }}</h2>
+          <span class="phase">Fase de Intercambio</span>
         </div>
       </div>
 
-      <!-- Click Button -->
-      <div class="click-area">
-        <button 
-          @click="handleClick"
-          class="click-button"
-          :class="{ 'clicked': isClicked }"
-        >
-          <span class="click-text">¡CLICK!</span>
-          <div class="click-effect" v-if="showEffect"></div>
-        </button>
+      <!-- Main Game Layout -->
+      <div class="game-layout">
+        <!-- Left side: Players -->
+        <div class="players-section">
+          <!-- Other Players (compact) -->
+          <div class="other-players">
+            <PlayerCard
+              v-for="player in otherPlayers" 
+              :key="player.id"
+              :player="player"
+              :is-current-player="false"
+              :compact="true"
+              @click="openOfferModal"
+            />
+          </div>
+          
+          <!-- Current Player (large) -->
+          <div class="current-player-section">
+            <PlayerCard
+              v-if="currentPlayer"
+              :player="currentPlayer"
+              :is-current-player="true"
+              :compact="false"
+            />
+          </div>
+        </div>
+
+        <!-- Right side: Offers (Desktop) / Bottom: Offers (Mobile) -->
+        <div class="offers-section">
+          <ScrollableOffers
+            :offers="activeOffers"
+            :current-player-id="currentPlayerId"
+            :get-player-name="getPlayerName"
+            @cancel="cancelOffer"
+            @respond="respondToOffer"
+          />
+        </div>
       </div>
 
-      <!-- Current Player Info -->
-      <div class="player-info">
-        <p>Tu puntaje: <strong>{{ currentPlayerScore }}</strong></p>
-      </div>
+      <!-- Offer Modal -->
+      <OfferModal
+        :is-open="showOfferModal"
+        :target-player-id="selectedTargetId"
+        :all-players="players"
+        @close="closeOfferModal"
+        @make-offer="makeOffer"
+      />
     </div>
   </div>
 </template>
@@ -49,17 +75,20 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, triggerRef } from 'vue'
 import { GameClient } from '@/services/gameClient'
-import { GameState, Player } from '@/types'
+import { GameState, Player, TradeOffer } from '@/types'
 import type { Room } from 'colyseus.js'
 import { logger } from '@/services/logger'
+import PlayerCard from './PlayerCard.vue'
+import ScrollableOffers from './ScrollableOffers.vue'
+import OfferModal from './OfferModal.vue'
 
 const props = defineProps<{
   gameClient: any
 }>()
 
 const gameState = ref<GameState | null>(null)
-const isClicked = ref(false)
-const showEffect = ref(false)
+const showOfferModal = ref(false)
+const selectedTargetId = ref('')
 
 // Computed properties
 const gamePhase = computed(() => {
@@ -67,7 +96,8 @@ const gamePhase = computed(() => {
   logger.computedProperty('gamePhase', phase)
   return phase
 })
-const minPlayers = computed(() => gameState.value?.minPlayers || 2)
+const round = computed(() => gameState.value?.round || 1)
+const minPlayers = computed(() => gameState.value?.minPlayers || 3)
 const playerCount = computed(() => {
   const count = gameState.value?.players.size || 0
   logger.computedProperty('playerCount', count)
@@ -80,29 +110,63 @@ const players = computed(() => {
   return playerList
 })
 const currentPlayerId = computed(() => props.gameClient?.currentPlayerId || '')
-const currentPlayerScore = computed(() => {
-  if (!gameState.value || !currentPlayerId.value) return 0
-  const player = gameState.value.players.get(currentPlayerId.value)
-  return player?.score || 0
+const currentPlayer = computed(() => {
+  return players.value.find(p => p.id === currentPlayerId.value) || null
+})
+const otherPlayers = computed(() => {
+  return players.value.filter(p => p.id !== currentPlayerId.value)
+})
+const activeOffers = computed(() => {
+  if (!gameState.value) return []
+  return Array.from(gameState.value.activeTradeOffers.values()).reverse()
 })
 
-const handleClick = () => {
-  if (!props.gameClient || gamePhase.value !== 'playing') return
+// Helper functions
+
+const getPlayerName = (playerId: string): string => {
+  if (!gameState.value) return 'Desconocido'
+  const player = gameState.value.players.get(playerId)
+  return player?.name || 'Desconocido'
+}
+
+
+// Modal actions
+const openOfferModal = (targetPlayerId: string) => {
+  selectedTargetId.value = targetPlayerId
+  showOfferModal.value = true
+}
+
+const closeOfferModal = () => {
+  showOfferModal.value = false
+  selectedTargetId.value = ''
+}
+
+// Game actions
+const makeOffer = (offerData: {
+  targetId: string,
+  offering: { turkey: number, coffee: number, corn: number },
+  requesting: { turkey: number, coffee: number, corn: number }
+}) => {
+  if (!props.gameClient) return
   
-  // Send click through gameClient
-  props.gameClient.sendClick()
+  props.gameClient.makeOffer(offerData)
+}
+
+const respondToOffer = (offerId: string, response: string) => {
+  if (!props.gameClient) return
   
-  // Visual feedback
-  isClicked.value = true
-  showEffect.value = true
+  props.gameClient.respondToOffer({
+    offerId,
+    response
+  })
+}
+
+const cancelOffer = (offerId: string) => {
+  if (!props.gameClient) return
   
-  setTimeout(() => {
-    isClicked.value = false
-  }, 150)
-  
-  setTimeout(() => {
-    showEffect.value = false
-  }, 400)
+  props.gameClient.cancelOffer({
+    offerId
+  })
 }
 
 onMounted(() => {
@@ -115,7 +179,8 @@ onMounted(() => {
     logger.gameComponentUpdate({
       gamePhase: state.gamePhase,
       playerCount: state.players.size,
-      gameStarted: state.gameStarted
+      gameStarted: state.gameStarted,
+      round: state.round
     })
     
     // Force Vue reactivity by assigning new reference and triggering update
@@ -145,16 +210,19 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  min-height: 100vh;
+  justify-content: flex-start;
+  height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 2rem;
+  padding: 1rem;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 /* Waiting Screen */
 .waiting-screen {
   text-align: center;
+  margin-top: 10vh;
 }
 
 .waiting-content h2 {
@@ -187,114 +255,99 @@ onMounted(() => {
 /* Game Screen */
 .game-screen {
   width: 100%;
-  max-width: 800px;
-}
-
-.scoreboard {
+  max-width: 1400px;
+  height: 100%;
   display: flex;
-  justify-content: center;
-  gap: 2rem;
-  margin-bottom: 3rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  box-sizing: border-box;
 }
 
-.player-score {
-  background: rgba(255, 255, 255, 0.1);
-  padding: 1rem 1.5rem;
-  border-radius: 12px;
+.game-header {
   text-align: center;
-  backdrop-filter: blur(10px);
-  border: 2px solid transparent;
-  transition: all 0.3s ease;
+  margin-bottom: 1rem;
+  flex-shrink: 0;
 }
 
-.player-score.current-player {
-  border-color: #ffd700;
-  background: rgba(255, 215, 0, 0.2);
-}
-
-.player-name {
-  display: block;
-  font-size: 1rem;
+.round-info h2 {
+  font-size: 2rem;
   margin-bottom: 0.5rem;
-  opacity: 0.9;
 }
 
-.score {
-  display: block;
-  font-size: 2rem;
-  font-weight: 700;
-}
-
-/* Click Button */
-.click-area {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 2rem;
-}
-
-.click-button {
-  position: relative;
-  width: 250px;
-  height: 250px;
-  border-radius: 50%;
-  border: none;
-  background: linear-gradient(45deg, #ff6b6b, #ff8e53);
-  color: white;
-  font-size: 2rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.1s ease;
-  box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
-  overflow: hidden;
-}
-
-.click-button:hover {
-  transform: scale(1.05);
-  box-shadow: 0 12px 35px rgba(255, 107, 107, 0.6);
-}
-
-.click-button.clicked {
-  transform: scale(0.95);
-  background: linear-gradient(45deg, #ff8e53, #ff6b6b);
-}
-
-.click-text {
-  position: relative;
-  z-index: 2;
-}
-
-.click-effect {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 30px;
-  height: 30px;
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  animation: clickRipple 0.4s ease-out;
-}
-
-@keyframes clickRipple {
-  0% {
-    width: 30px;
-    height: 30px;
-    opacity: 0.8;
-  }
-  100% {
-    width: 300px;
-    height: 300px;
-    opacity: 0;
-  }
-}
-
-.player-info {
-  text-align: center;
+.phase {
   font-size: 1.2rem;
+  opacity: 0.8;
 }
 
-.player-info strong {
-  color: #ffd700;
+/* Main Game Layout */
+.game-layout {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 2rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.players-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.other-players {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.current-player-section {
+  margin-top: auto;
+}
+
+.offers-section {
+  min-height: 0;
+}
+
+/* Mobile Layout */
+@media (max-width: 768px) {
+  .game-container {
+    height: auto;
+    min-height: 100vh;
+    overflow: auto;
+  }
+  
+  .game-screen {
+    height: auto;
+    min-height: calc(100vh - 2rem);
+  }
+  
+  .game-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 400px;
+  }
+  
+  .players-section {
+    order: 1;
+  }
+  
+  .offers-section {
+    order: 2;
+    min-height: 400px;
+  }
+  
+  .other-players {
+    grid-template-columns: 1fr 1fr;
+    margin-bottom: 1rem;
+  }
+  
+  .current-player-section {
+    margin-top: 0;
+  }
+}
+
+/* Tablet adjustments */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .game-layout {
+    grid-template-columns: 1fr 300px;
+  }
 }
 </style>

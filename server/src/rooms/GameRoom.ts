@@ -1,38 +1,67 @@
 import { Room, Client } from "colyseus";
-import { Schema, MapSchema, type } from "@colyseus/schema";
+import { Schema, MapSchema, ArraySchema, type } from "@colyseus/schema";
 
 export interface GameRoomOptions {
     gameMode?: string;
     playerName?: string;
 }
 
+export class TokenInventory extends Schema {
+    @type("number") turkey: number = 0;
+    @type("number") coffee: number = 0;
+    @type("number") corn: number = 0;
+}
+
+export class TradeOffer extends Schema {
+    @type("string") id: string;
+    @type("string") offererId: string;
+    @type("string") targetId: string;
+    @type(TokenInventory) offering = new TokenInventory();
+    @type(TokenInventory) requesting = new TokenInventory();
+    @type("string") status: string = "pending"; // "pending" | "accepted" | "rejected" | "snatched" | "cancelled"
+}
+
 export class Player extends Schema {
     @type("string") id: string;
     @type("string") name: string;
-    @type("number") score: number = 0;
-    @type("boolean") ready: boolean = false;
+    @type("string") producerRole: string = "turkey"; // "turkey" | "coffee" | "corn"
+    @type(TokenInventory) tokens = new TokenInventory();
+    @type("number") points: number = 0;
+    @type("number") shameTokens: number = 0;
+    @type("boolean") isSuspended: boolean = false;
+    @type("string") role: string = "trader"; // "trader" | "judge"
 }
 
 export class GameState extends Schema {
     @type({ map: Player }) players = new MapSchema<Player>();
+    @type({ array: TradeOffer }) activeTradeOffers = new ArraySchema<TradeOffer>();
+    @type("number") round: number = 1;
+    @type("string") gamePhase: string = "waiting"; // "waiting" | "trading" | "judging" | "results"
     @type("boolean") gameStarted: boolean = false;
-    @type("string") gameMode: string = "classic";
-    @type("number") minPlayers: number = 2;
-    @type("string") gamePhase: string = "waiting"; // "waiting" | "playing"
+    @type("number") minPlayers: number = 3;
+    @type("number") maxPlayers: number = 3;
 }
 
 export class GameRoom extends Room<GameState> {
-    maxClients = 8;
+    maxClients = 3;
+    private producerRoles = ["turkey", "coffee", "corn"];
 
     onCreate(options: GameRoomOptions) {
         console.log(`GameRoom created with options:`, options);
         
         this.setState(new GameState());
-        this.state.gameMode = options.gameMode || 'classic';
         this.state.gamePhase = "waiting";
 
-        this.onMessage("click", (client, message) => {
-            this.handleClick(client);
+        this.onMessage("makeOffer", (client, message) => {
+            this.handleMakeOffer(client, message);
+        });
+
+        this.onMessage("respondToOffer", (client, message) => {
+            this.handleRespondToOffer(client, message);
+        });
+
+        this.onMessage("cancelOffer", (client, message) => {
+            this.handleCancelOffer(client, message);
         });
 
         this.onMessage("*", (client, type, message) => {
@@ -40,31 +69,169 @@ export class GameRoom extends Room<GameState> {
         });
     }
 
-    private handleClick(client: Client) {
+    private assignProducerRoles() {
+        const playerIds = Array.from(this.state.players.keys());
+        const shuffledRoles = [...this.producerRoles].sort(() => Math.random() - 0.5);
+        
+        playerIds.forEach((playerId, index) => {
+            const player = this.state.players.get(playerId);
+            if (player) {
+                player.producerRole = shuffledRoles[index];
+                
+                // Initialize tokens based on producer role
+                player.tokens.turkey = 0;
+                player.tokens.coffee = 0;
+                player.tokens.corn = 0;
+                
+                switch (player.producerRole) {
+                    case "turkey":
+                        player.tokens.turkey = 5;
+                        break;
+                    case "coffee":
+                        player.tokens.coffee = 5;
+                        break;
+                    case "corn":
+                        player.tokens.corn = 5;
+                        break;
+                }
+                
+                console.log(`🎭 Player ${player.name} assigned role: ${player.producerRole}`);
+            }
+        });
+    }
+
+    private calculatePoints(player: Player): number {
+        const ownTokens = player.tokens[player.producerRole as keyof TokenInventory];
+        const otherTokens = (player.tokens.turkey + player.tokens.coffee + player.tokens.corn) - ownTokens;
+        return ownTokens * 1 + otherTokens * 2;
+    }
+
+    private updateAllPlayerPoints() {
+        this.state.players.forEach(player => {
+            player.points = this.calculatePoints(player);
+        });
+    }
+
+    private handleMakeOffer(client: Client, message: any) {
         const player = this.state.players.get(client.sessionId);
         
-        if (!player) {
-            console.log(`Player not found for client ${client.sessionId}`);
+        if (!player || this.state.gamePhase !== "trading") {
+            console.log(`Offer rejected - invalid state`);
             return;
         }
 
-        if (this.state.gamePhase !== "playing") {
-            console.log(`Click ignored - game not started (phase: ${this.state.gamePhase})`);
+        // Cannot offer to self
+        if (message.targetId === client.sessionId) {
+            console.log(`Offer rejected - cannot offer to self`);
             return;
         }
 
-        player.score += 1;
-        console.log(`🎮 Player ${player.name} clicked! New score: ${player.score}`);
+        // Count existing offers from THIS player to THIS target
+        const existingOffers = this.state.activeTradeOffers.filter(offer => 
+            offer.offererId === client.sessionId && 
+            offer.targetId === message.targetId &&
+            offer.status === "pending"
+        );
+
+        if (existingOffers.length >= 2) {
+            console.log(`Offer rejected - maximum 2 offers per target reached`);
+            return;
+        }
+
+        const offer = new TradeOffer();
+        offer.id = `${client.sessionId}-${Date.now()}`;
+        offer.offererId = client.sessionId;
+        offer.targetId = message.targetId;
+        offer.offering.turkey = message.offering.turkey || 0;
+        offer.offering.coffee = message.offering.coffee || 0;
+        offer.offering.corn = message.offering.corn || 0;
+        offer.requesting.turkey = message.requesting.turkey || 0;
+        offer.requesting.coffee = message.requesting.coffee || 0;
+        offer.requesting.corn = message.requesting.corn || 0;
+        offer.status = "pending";
+
+        this.state.activeTradeOffers.push(offer);
+        console.log(`📝 Trade offer created: ${offer.id}`);
+    }
+
+    private handleRespondToOffer(client: Client, message: any) {
+        const offer = this.state.activeTradeOffers.find(o => o.id === message.offerId);
+        
+        if (!offer || offer.targetId !== client.sessionId || offer.status !== "pending") {
+            console.log(`Response rejected - invalid offer`);
+            return;
+        }
+
+        const response = message.response; // "accept" | "reject" | "snatch"
+        offer.status = response === "accept" ? "accepted" : response === "reject" ? "rejected" : "snatched";
+
+        if (response === "accept" || response === "snatch") {
+            this.executeTradeOffer(offer, response === "snatch");
+        }
+
+        console.log(`✅ Trade offer ${offer.id} ${response}ed`);
+        this.updateAllPlayerPoints();
+    }
+
+    private handleCancelOffer(client: Client, message: any) {
+        const offer = this.state.activeTradeOffers.find(o => o.id === message.offerId);
+        
+        if (!offer || offer.offererId !== client.sessionId || offer.status !== "pending") {
+            console.log(`Cancel rejected - invalid offer`);
+            return;
+        }
+
+        offer.status = "cancelled";
+        console.log(`❌ Trade offer ${offer.id} cancelled`);
+    }
+
+    private executeTradeOffer(offer: TradeOffer, isSnatch: boolean) {
+        const offerer = this.state.players.get(offer.offererId);
+        const target = this.state.players.get(offer.targetId);
+        
+        if (!offerer || !target) return;
+
+        // Calculate what can actually be transferred
+        const actualOffering = {
+            turkey: Math.min(offer.offering.turkey, offerer.tokens.turkey),
+            coffee: Math.min(offer.offering.coffee, offerer.tokens.coffee),
+            corn: Math.min(offer.offering.corn, offerer.tokens.corn)
+        };
+
+        const actualRequesting = isSnatch ? { turkey: 0, coffee: 0, corn: 0 } : {
+            turkey: Math.min(offer.requesting.turkey, target.tokens.turkey),
+            coffee: Math.min(offer.requesting.coffee, target.tokens.coffee),
+            corn: Math.min(offer.requesting.corn, target.tokens.corn)
+        };
+
+        // Transfer tokens
+        offerer.tokens.turkey -= actualOffering.turkey;
+        offerer.tokens.coffee -= actualOffering.coffee;
+        offerer.tokens.corn -= actualOffering.corn;
+        offerer.tokens.turkey += actualRequesting.turkey;
+        offerer.tokens.coffee += actualRequesting.coffee;
+        offerer.tokens.corn += actualRequesting.corn;
+
+        target.tokens.turkey += actualOffering.turkey;
+        target.tokens.coffee += actualOffering.coffee;
+        target.tokens.corn += actualOffering.corn;
+        target.tokens.turkey -= actualRequesting.turkey;
+        target.tokens.coffee -= actualRequesting.coffee;
+        target.tokens.corn -= actualRequesting.corn;
+
+        console.log(`🔄 Trade executed: ${isSnatch ? 'SNATCH' : 'FAIR'}`);
     }
 
     private checkGameStart() {
         const playerCount = this.state.players.size;
         
-        if (playerCount >= this.state.minPlayers && this.state.gamePhase === "waiting") {
-            this.state.gamePhase = "playing";
+        if (playerCount === this.state.minPlayers && this.state.gamePhase === "waiting") {
+            this.assignProducerRoles();
+            this.state.gamePhase = "trading";
             this.state.gameStarted = true;
-            console.log(`🚀 Game started! ${playerCount} players ready to play`);
-        } else if (playerCount < this.state.minPlayers && this.state.gamePhase === "playing") {
+            this.state.round = 1;
+            console.log(`🚀 Game started! Round ${this.state.round} - Trading phase`);
+        } else if (playerCount < this.state.minPlayers && this.state.gameStarted) {
             this.state.gamePhase = "waiting";
             this.state.gameStarted = false;
             console.log(`⏸️  Game paused - not enough players (${playerCount}/${this.state.minPlayers})`);
@@ -77,8 +244,12 @@ export class GameRoom extends Room<GameState> {
         const player = new Player();
         player.id = client.sessionId;
         player.name = options.playerName || `Player ${this.state.players.size + 1}`;
-        player.score = 0;
-        player.ready = false;
+        player.producerRole = "turkey"; // Will be reassigned when game starts
+        player.tokens = new TokenInventory();
+        player.points = 0;
+        player.shameTokens = 0;
+        player.isSuspended = false;
+        player.role = "trader";
         
         this.state.players.set(client.sessionId, player);
         
