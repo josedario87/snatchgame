@@ -4,7 +4,7 @@ import type { GameRoomOptions } from '../types'
 import { logger } from './logger'
 
 export class GameClient {
-  public client: Client
+  public client: Client | null = null
   public room: Room<GameState> | null = null
   
   // Current state
@@ -19,13 +19,33 @@ export class GameClient {
   private onRoundChangedCallbacks: ((data: any) => void)[] = []
 
   constructor() {
-    const serverUrl = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567'
-    this.client = new Client(serverUrl)
-    logger.info('Game client initialized with server:', serverUrl)
+    // Client will be initialized when needed
+  }
+
+  private async ensureClientInitialized() {
+    if (this.client) return
+
+    try {
+      // Fetch runtime configuration from our Express server
+      const configResponse = await fetch('/api/config')
+      const config = await configResponse.json()
+      const serverUrl = config.serverUrl || 'ws://localhost:2567'
+      
+      this.client = new Client(serverUrl)
+      logger.info('Game client initialized with server:', serverUrl)
+    } catch (error) {
+      // Fallback to default if config fetch fails
+      const defaultUrl = 'ws://localhost:2567'
+      this.client = new Client(defaultUrl)
+      logger.warn('Failed to fetch config, using default:', defaultUrl)
+    }
   }
 
   async joinGame(playerName: string, gameMode: string = 'classic'): Promise<Room<GameState>> {
     try {
+      await this.ensureClientInitialized()
+      if (!this.client) throw new Error('Failed to initialize game client')
+      
       logger.info('Attempting to join game room...')
       
       const options: GameRoomOptions = {
