@@ -29,7 +29,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - SERVER_URL=http://snatchgame-server:2567
+      - SERVER_URL=http://snatchGameServer.interno.com
     depends_on:
       - snatchgame-server
     networks:
@@ -51,7 +51,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3001
-      - SERVER_URL=http://snatchgame-server:2567
+      - SERVER_URL=http://snatchGameServer.interno.com
     depends_on:
       - snatchgame-server
     networks:
