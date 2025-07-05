@@ -153,8 +153,12 @@ app.post('/api/admin/cancel-game', async (req, res) => {
     }
 });
 
-// Serve static files from current directory (AFTER API routes)
+// Configure MIME types for modules
+express.static.mime.define({'application/javascript': ['js', 'mjs']});
+
+// Serve static files from current directory and dist (AFTER API routes)
 app.use(express.static('.'));
+app.use(express.static('dist'));
 
 // Serve main HTML file for SPA routes
 app.get('*', (req, res) => {

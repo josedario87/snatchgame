@@ -9,8 +9,12 @@ dotenv.config({ path: `.env.${ENV}` });
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Serve static files from current directory
+// Configure MIME types for modules
+express.static.mime.define({'application/javascript': ['js', 'mjs']});
+
+// Serve static files from current directory and dist
 app.use(express.static('.'));
+app.use(express.static('dist'));
 
 // Serve main HTML file
 app.get('/', (req, res) => {
