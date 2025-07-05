@@ -24,17 +24,3 @@ Type 'GameClient' is missing the following properties from type 'GameClient': cl
 
 **Prioridad:** Media (funciona pero no es tipo-seguro)
 
-### Admin API - Métodos pauseGame y resumeGame
-**Problema:** Los endpoints `/api/admin/pause-game` y `/api/admin/resume-game` usan `matchMaker.remoteRoomCall` para llamar métodos que no existen en GameRoom.
-
-**Archivos afectados:** 
-- `server/src/app.config.ts` - Endpoints que llaman a `pauseGame` y `resumeGame`
-- `server/src/rooms/GameRoom.ts` - Falta implementar los métodos
-
-**Solución pendiente:**
-- Implementar método `pauseGame()` en GameRoom.ts
-- Implementar método `resumeGame()` en GameRoom.ts  
-- Los métodos deben modificar `gamePhase` en el estado del juego
-- Agregar logs apropiados para debugging
-
-**Prioridad:** Alta (endpoints fallarán hasta que se implemente)
