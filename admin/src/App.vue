@@ -129,7 +129,7 @@ onMounted(async () => {
     serverUrl.value = config.serverUrl
 
     // Connect to SSE
-    adminService.connect((data) => {
+    await adminService.connect((data) => {
       if (data.type === 'connected') {
         isConnected.value = true
       } else if (data.type === 'gameStats') {

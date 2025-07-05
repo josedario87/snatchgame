@@ -26,8 +26,26 @@ class AdminService {
   private connectionCallback: ConnectionCallback | null = null
   private isConnected = false
   private serverUrl: string = 'http://localhost:2567' // Default to Colyseus server
+  private initialized = false
 
-  connect(callback: AdminCallback): void {
+  private async initializeServerUrl(): Promise<void> {
+    if (this.initialized) return
+    
+    try {
+      const response = await fetch('/api/config')
+      const config = await response.json()
+      this.serverUrl = config.serverUrl || 'http://localhost:2567'
+      this.initialized = true
+    } catch (error) {
+      console.warn('Failed to fetch server config, using default URL:', error)
+      this.serverUrl = 'http://localhost:2567'
+      this.initialized = true
+    }
+  }
+
+  async connect(callback: AdminCallback): Promise<void> {
+    await this.initializeServerUrl()
+    
     this.callback = callback
     this.eventSource = new EventSource('/api/sse')
 
@@ -67,6 +85,7 @@ class AdminService {
 
   // Admin control methods
   async kickPlayer(playerId: string): Promise<void> {
+    await this.initializeServerUrl()
     const response = await fetch(`${this.serverUrl}/api/admin/kick-player`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -79,6 +98,7 @@ class AdminService {
   }
 
   async pauseGame(): Promise<void> {
+    await this.initializeServerUrl()
     const response = await fetch(`${this.serverUrl}/api/admin/pause-game`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
@@ -90,6 +110,7 @@ class AdminService {
   }
 
   async resumeGame(): Promise<void> {
+    await this.initializeServerUrl()
     const response = await fetch(`${this.serverUrl}/api/admin/resume-game`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
@@ -101,6 +122,7 @@ class AdminService {
   }
 
   async cancelGame(gameId: string): Promise<void> {
+    await this.initializeServerUrl()
     const response = await fetch(`${this.serverUrl}/api/admin/cancel-game`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -113,6 +135,7 @@ class AdminService {
   }
 
   async kickAllPlayers(): Promise<void> {
+    await this.initializeServerUrl()
     const response = await fetch(`${this.serverUrl}/api/admin/kick-all-players`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
@@ -124,6 +147,7 @@ class AdminService {
   }
 
   async advanceRound(): Promise<void> {
+    await this.initializeServerUrl()
     const response = await fetch(`${this.serverUrl}/api/admin/advance-round`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
@@ -135,6 +159,7 @@ class AdminService {
   }
 
   async previousRound(): Promise<void> {
+    await this.initializeServerUrl()
     const response = await fetch(`${this.serverUrl}/api/admin/previous-round`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
