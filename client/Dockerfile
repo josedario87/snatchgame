@@ -16,7 +16,7 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Build Vue application (skip type generation in Docker)
+# Build Vue application
 RUN npm run build:prod
 
 # Expose port
