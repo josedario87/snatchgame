@@ -101,8 +101,9 @@ export class GameRoom extends Room<GameState> {
     }
 
     private calculatePoints(player: Player): number {
-        const ownTokens = player.tokens[player.producerRole as keyof TokenInventory] || 0;
-        const otherTokens = (player.tokens.turkey + player.tokens.coffee + player.tokens.corn) - ownTokens;
+        const ownTokens = Number(player.tokens[player.producerRole as keyof TokenInventory]) || 0;
+        const totalTokens = Number(player.tokens.turkey || 0) + Number(player.tokens.coffee || 0) + Number(player.tokens.corn || 0);
+        const otherTokens = totalTokens - ownTokens;
         return ownTokens * 1 + otherTokens * 2;
     }
 
