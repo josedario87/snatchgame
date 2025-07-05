@@ -57,10 +57,11 @@ app.get('/api/config', (req, res) => {
 });
 
 app.listen(PORT, () => {
+    const publicUrl = ENV === 'production' ? 'https://snatchGame.interno.com' : `http://localhost:${PORT}`;
     console.log(`
 🎮 SnatchGame Client Server
 📱 Environment: ${ENV}
-🌐 Server URL: http://localhost:${PORT}
+🌐 Server URL: ${publicUrl}
 🔗 Game Server: ${process.env.SERVER_URL}
     `);
 });

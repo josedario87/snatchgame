@@ -183,11 +183,12 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
+    const publicUrl = ENV === 'production' ? 'https://snatchgGameAdmin.interno.com' : `http://localhost:${PORT}`;
     console.log(`
 📊 SnatchGame Admin Dashboard
 📱 Environment: ${ENV}
-🌐 Server URL: http://localhost:${PORT}
+🌐 Server URL: ${publicUrl}
 🔗 Game Server: ${process.env.SERVER_URL}
-📡 SSE Endpoint: http://localhost:${PORT}/api/sse
+📡 SSE Endpoint: ${publicUrl}/api/sse
     `);
 });
