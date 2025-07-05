@@ -29,7 +29,14 @@ export class GameClient {
       // Fetch runtime configuration from our Express server
       const configResponse = await fetch('/api/config')
       const config = await configResponse.json()
-      const serverUrl = config.serverUrl || 'ws://localhost:2567'
+      let serverUrl = config.serverUrl || 'ws://localhost:2567'
+      
+      // Convert HTTP/HTTPS URLs to WebSocket URLs
+      if (serverUrl.startsWith('https://')) {
+        serverUrl = serverUrl.replace('https://', 'wss://')
+      } else if (serverUrl.startsWith('http://')) {
+        serverUrl = serverUrl.replace('http://', 'ws://')
+      }
       
       this.client = new Client(serverUrl)
       logger.info('Game client initialized with server:', serverUrl)
