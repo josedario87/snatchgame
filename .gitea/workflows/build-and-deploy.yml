@@ -70,7 +70,7 @@ jobs:
         run: docker login gitea.interno.com -u nucleo000 -p 7bc7b2fcd283bd6a251bef3ede368b7f897c919d
 
       - name: Pull fresh images used in compose
-        run: docker compose pull
+        run: docker compose pull --ignore-pull-failures
 
       - name: Clean up stack
         run: docker compose --project-name snatchgame down
