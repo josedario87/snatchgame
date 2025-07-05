@@ -50,6 +50,7 @@ class AdminService {
     this.eventSource = new EventSource('/api/sse')
 
     this.eventSource.onopen = () => {
+      console.log('[AdminService] SSE connection opened')
       this.isConnected = true
       this.connectionCallback?.(true)
     }
@@ -57,14 +58,15 @@ class AdminService {
     this.eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data)
+        console.log('[AdminService] SSE message received:', data.type, data.timestamp)
         this.callback?.(data)
       } catch (error) {
-        console.error('Error parsing SSE message:', error)
+        console.error('[AdminService] Error parsing SSE message:', error)
       }
     }
 
     this.eventSource.onerror = (error) => {
-      console.error('SSE connection error:', error)
+      console.error('[AdminService] SSE connection error:', error)
       this.isConnected = false
       this.connectionCallback?.(false)
     }

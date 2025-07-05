@@ -12,6 +12,9 @@ const PORT = process.env.PORT || 3002;
 // Parse JSON bodies
 app.use(express.json());
 
+// Track SSE connections
+let sseConnections = 0;
+
 // Health check endpoint
 app.get('/health', (req, res) => {
     console.log('que pedos');
@@ -34,6 +37,10 @@ app.get('/api/config', (req, res) => {
 
 // SSE endpoint for real-time updates
 app.get('/api/sse', (req, res) => {
+    sseConnections++;
+    const connectionId = sseConnections;
+    console.log(`[SSE] New connection #${connectionId} established. Total: ${sseConnections}`);
+    
     res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
@@ -47,38 +54,48 @@ app.get('/api/sse', (req, res) => {
 
     // Set up polling interval for game state updates
     const pollInterval = setInterval(async () => {
+        const startTime = Date.now();
         try {
             // Fetch game state from Colyseus server
             const gameServerUrl = process.env.SERVER_URL || 'http://localhost:2567';
+            console.log(`[SSE] Fetching stats from: ${gameServerUrl}/api/admin/stats`);
+            
             const response = await fetch(`${gameServerUrl}/api/admin/stats`);
+            
+            const fetchTime = Date.now() - startTime;
             
             if (response.ok) {
                 const gameStats = await response.json();
+                console.log(`[SSE] Stats fetched successfully in ${fetchTime}ms`);
                 res.write(`data: ${JSON.stringify({
                     type: 'gameStats',
                     timestamp: new Date().toISOString(),
                     data: gameStats
                 })}\n\n`);
             } else {
+                console.log(`[SSE] Stats fetch failed with status ${response.status} in ${fetchTime}ms`);
                 // Send error status if server is not reachable
                 res.write(`data: ${JSON.stringify({
                     type: 'error',
                     timestamp: new Date().toISOString(),
-                    message: 'Cannot connect to game server'
+                    message: `Cannot connect to game server (${response.status})`
                 })}\n\n`);
             }
         } catch (error) {
-            console.error('Error fetching game stats:', error);
+            const fetchTime = Date.now() - startTime;
+            console.error(`[SSE] Error fetching game stats in ${fetchTime}ms:`, error.message);
             res.write(`data: ${JSON.stringify({
                 type: 'error',
                 timestamp: new Date().toISOString(),
-                message: 'Error fetching game stats'
+                message: `Error fetching game stats: ${error.message}`
             })}\n\n`);
         }
     }, 500); // Poll every 500ms
 
     // Clean up on client disconnect
     req.on('close', () => {
+        sseConnections--;
+        console.log(`[SSE] Connection #${connectionId} closed. Total: ${sseConnections}`);
         clearInterval(pollInterval);
     });
 });
