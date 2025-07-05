@@ -51,7 +51,7 @@ app.get('/health', (req, res) => {
 // API endpoint to get environment config for client
 app.get('/api/config', (req, res) => {
     res.json({
-        serverUrl: process.env.SERVER_URL,
+        serverUrl: process.env.PUBLIC_SERVER_URL || process.env.SERVER_URL,
         environment: ENV
     });
 });
