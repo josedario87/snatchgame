@@ -11,6 +11,7 @@ services:
       - NODE_ENV=production
       - PORT=2567
     networks:
+      - principal
       - snatchgame-network
     restart: unless-stopped
     healthcheck:
@@ -33,6 +34,7 @@ services:
     depends_on:
       - snatchgame-server
     networks:
+      - principal
       - snatchgame-network
     restart: unless-stopped
     healthcheck:
@@ -55,6 +57,7 @@ services:
     depends_on:
       - snatchgame-server
     networks:
+      - principal
       - snatchgame-network
     restart: unless-stopped
     healthcheck:
@@ -65,5 +68,7 @@ services:
       start_period: 40s
 
 networks:
+  principal:
+    external: true
   snatchgame-network:
     driver: bridge
