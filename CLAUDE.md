@@ -67,16 +67,23 @@ nginx-proxy-manager   # Proxy reverso y balanceador
 ```
 
 **Enrutamiento Producción:**
-- `/` → Cliente UI
-- `/admin` → Admin UI  
-- `/server` → API Servidor Colyseus
+- `https://snatchGame.interno.com` → Cliente UI
+- `https://snatchgGameAdmin.interno.com` → Admin UI  
+- `https://snatchGameServer.interno.com` → API Servidor Colyseus
+
+**Puertos de Producción:**
+- Cliente: Puerto 3010 (externo) → 3000 (interno)
+- Admin: Puerto 3011 (externo) → 3001 (interno)  
+- Servidor: Puerto 3067 (externo) → 2567 (interno)
 
 ## UI de Administración
 **Arquitectura:**
 - Servidor Express independiente (Puerto 3001)
 - Comunicación SSE con servidor Colyseus
-- Actualización de estado cada 500ms (polling)
+- Actualización de estado cada 250ms (polling optimizado)
 - Una interfaz principal (múltiples conexiones opcionales)
+- Separación URLs: HTTP interna, HTTPS externa
+- Auto-reconexión y heartbeat para estabilidad
 
 **Funcionalidades principales:**
 - Dashboard con estadísticas en tiempo real:
@@ -128,17 +135,25 @@ nginx-proxy-manager   # Proxy reverso y balanceador
 - ⚠️ **Si servicios no arrancan** probablemente el usuario los levantó manualmente
 - ⚠️ **Verificar puertos** antes de iniciar servicios para evitar conflictos
 
-### Producción
+### Producción Local
 - **Build Server**: `cd server && npm run build`
 - **Start Server**: `cd server && npm run start`
 - **Start Client**: `cd client && npm run start`
 - **Start Admin**: `cd admin && npm run start`
 
 ### Docker (Producción)
-- **Build**: `docker-compose build`
-- **Start**: `docker-compose up -d`
-- **Stop**: `docker-compose down`
-- **Logs**: `docker-compose logs -f [service]`
+- **Build todas las imágenes**: `docker-compose build`
+- **Start en producción**: `docker-compose up -d`
+- **Stop servicios**: `docker-compose down`
+- **Logs en tiempo real**: `docker-compose logs -f`
+- **Logs de servicio específico**: `docker-compose logs -f [snatchgame-server|snatchgame-client|snatchgame-admin]`
+- **Rebuild tras cambios**: `docker-compose down && docker-compose up -d --build`
+- **Ver estado de contenedores**: `docker-compose ps`
+
+### CI/CD (Gitea Actions)
+- **Push automático**: `git push gitea main` (triggerea build y deploy automático)
+- **Ver logs de CI/CD**: Revisar en Gitea Actions tab
+- **Conditional builds**: Solo builds los servicios con cambios detectados
 
 ### Variables de Entorno
 - Desarrollo: `.env.development`
@@ -251,3 +266,93 @@ client/src/types/
 - **Logging**: Detallado para debugging profesional
 - **Tipos TypeScript**: Auto-generación con schema-codegen + copiar tipos auxiliares manualmente
 - **Admin Dashboard**: Completamente funcional con control total del juego
+- **Separación URLs**: HTTP para comunicación interna, HTTPS para navegadores
+- **CI/CD Automático**: Gitea Actions con conditional building y deploy automático
+- **SSE Optimizado**: Anti-buffering, polling 250ms, heartbeat y auto-reconexión
+
+## Arquitectura de Producción
+
+### Flujo de Comunicación
+
+```
+Browser                     Nginx Proxy               Docker Containers
+                           Manager                    
+┌─────────────┐           ┌─────────────┐           ┌─────────────────┐
+│   HTTPS     │ ────────► │   Routes    │ ────────► │ HTTP (interno)  │
+│   Requests  │           │   Traffic   │           │ Entre servicios │
+└─────────────┘           └─────────────┘           └─────────────────┘
+
+Frontend (Vue) ──HTTPS──► Nginx ──HTTP──► Express Server ──HTTP──► Colyseus
+                                           ↓
+                                        SSE Stream ──HTTP──► Admin Service
+```
+
+### Separación de Responsabilidades
+
+**Nginx Proxy Manager:**
+- Terminación SSL/TLS
+- Enrutamiento por dominio
+- Balance de carga
+- Certificados automáticos
+
+**Docker Network "principal":**
+- Comunicación con Nginx
+- Acceso externo controlado
+- Isolation de otros servicios
+
+**Docker Network "snatchgame-network":**
+- Comunicación interna entre servicios
+- Sin acceso externo directo
+- Optimizada para velocidad
+
+### URLs y Configuración
+
+**Externa (HTTPS - Navegador):**
+```javascript
+// Frontend usa PUBLIC_SERVER_URL
+const serverUrl = config.serverUrl // https://snatchGameServer.interno.com
+this.client = new Client(serverUrl.replace('https://', 'wss://'))
+```
+
+**Interna (HTTP - Contenedores):**
+```javascript
+// Backend usa SERVER_URL
+const gameServerUrl = process.env.SERVER_URL // http://snatchgame-server:2567
+const response = await fetch(`${gameServerUrl}/api/admin/stats`)
+```
+
+### Health Checks y Monitoring
+
+**Health Endpoints:**
+- `/health` en todos los servicios
+- Respuesta JSON con status y metadata
+- Usado por Docker y monitoring
+
+**Logging Estructurado:**
+```javascript
+console.log(`[SSE] Connection #${connectionId} established. Total: ${sseConnections}`)
+console.log(`[SSE] Stats fetched successfully in ${fetchTime}ms`)
+```
+
+**Métricas de Performance:**
+- SSE polling: 250ms (4 updates/segundo)
+- Heartbeat: 30 segundos
+- Auto-reconnect: 5 segundos
+- Health check: 30 segundos
+
+### Security Best Practices
+
+**Network Isolation:**
+- Servicios en red interna Docker
+- Solo puertos necesarios expuestos
+- Nginx como único punto de entrada
+
+**SSL/TLS:**
+- HTTPS/WSS para comunicación externa
+- HTTP interno (rápido y seguro en Docker)
+- Certificados manejados por Nginx
+
+**Environment Variables:**
+- Configuración sensitive via env vars
+- Separación desarrollo/producción
+- Runtime configuration endpoints

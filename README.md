@@ -129,13 +129,25 @@ npm run dev
 - **Admin Dashboard**: http://localhost:3001
 - **Monitor Colyseus**: http://localhost:2567/monitor
 
-### Producción
-```bash
-# Build
-npm run build
+### Producción con Docker
 
-# Deploy con Docker
+**URLs de Producción:**
+- **Cliente**: https://snatchGame.interno.com
+- **Servidor**: https://snatchGameServer.interno.com
+- **Admin Dashboard**: https://snatchgGameAdmin.interno.com
+
+```bash
+# Build todas las imágenes
+docker-compose build
+
+# Deploy en producción
 docker-compose up -d
+
+# Ver logs en tiempo real
+docker-compose logs -f
+
+# Rebuild y redeploy tras cambios
+docker-compose down && docker-compose up -d --build
 ```
 
 ## 🎮 Interfaz del Juego
@@ -196,6 +208,8 @@ El **Admin Dashboard** proporciona control completo y monitoreo en tiempo real d
 - **Comunicación Bidireccional**: SSE para updates, HTTP para control
 - **Sin Variables Globales**: Implementación limpia y mantenible
 - **Type Safety**: Sincronización completa de tipos TypeScript
+- **Separación URLs**: URLs internas HTTP para contenedores, HTTPS para clientes
+- **Optimización SSE**: Anti-buffering headers, polling optimizado (250ms), heartbeat
 
 ## ⚙️ Configuración
 
@@ -210,9 +224,15 @@ PORT=2567
 
 **Producción** (`.env.production`):
 ```env
-VITE_SERVER_URL=wss://your-domain.com
 NODE_ENV=production
+# Servidor
 PORT=2567
+# Cliente
+SERVER_URL=http://snatchgame-server:2567
+PUBLIC_SERVER_URL=https://snatchGameServer.interno.com
+# Admin
+SERVER_URL=http://snatchgame-server:2567
+PUBLIC_SERVER_URL=https://snatchGameServer.interno.com
 ```
 
 ### Configuración de Logs
@@ -222,25 +242,59 @@ PORT=2567
 
 ## 🏗️ Arquitectura
 
+### Desarrollo
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Client UI     │    │  Colyseus       │    │   Admin UI      │
 │   (Vue 3)       │◄──►│   Server        │◄──►│   (Vue 3 + SSE) │
 │   Port 3000     │    │   Port 2567     │    │   Port 3001     │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                    ┌─────────────────┐
-                    │  Docker +       │
-                    │  Nginx Proxy    │
-                    └─────────────────┘
 ```
+
+### Producción con Docker
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    Nginx Proxy Manager                        │
+│                      Red "principal"                          │
+├────────────────────────────────────────────────────────────────┤
+│  https://snatchGame.interno.com                               │
+│       ↓ (Puerto 3010)                                         │
+│  ┌─────────────────┐     ┌─────────────────┐                  │
+│  │ snatchgame-     │     │ snatchgame-     │                  │
+│  │ client          │◄────┤ server          │                  │
+│  │ (Vue + Express) │     │ (Colyseus)      │                  │
+│  │ Puerto 3000     │     │ Puerto 2567     │                  │
+│  └─────────────────┘     └─────────────────┘                  │
+│           ▲                       ▲                           │
+│           │                       │                           │
+│           │               ┌─────────────────┐                  │
+│           └───────────────┤ snatchgame-     │                  │
+│                           │ admin           │                  │
+│                           │ (Vue + Express) │                  │
+│   https://snatchgGameAdmin.interno.com     │                  │
+│                           │ Puerto 3001     │                  │
+│                           └─────────────────┘                  │
+│                               ↑ (Puerto 3011)                 │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### Separación de URLs en Producción
+
+**URLs Externas (HTTPS - Navegador → Nginx):**
+- Cliente: `https://snatchGame.interno.com`
+- Servidor: `https://snatchGameServer.interno.com` 
+- Admin: `https://snatchgGameAdmin.interno.com`
+
+**URLs Internas (HTTP - Contenedor → Contenedor):**
+- Servidor: `http://snatchgame-server:2567`
+- Cliente API: `http://snatchgame-client:3000`
+- Admin API: `http://snatchgame-admin:3001`
 
 ### Comunicación Admin
 - **SSE (Server-Sent Events)**: Servidor → Admin UI
-- **Polling**: Actualización cada 500ms
+- **Polling**: Actualización cada 250ms (optimizado)
 - **Control**: Admin → Servidor (HTTP endpoints)
+- **Heartbeat**: Keepalive cada 30 segundos
 
 ### Sincronización de Tipos
 ```bash
@@ -395,8 +449,15 @@ npm run start
   - [x] Control de rondas globales
   - [x] Información detallada de jugadores con tokens
   - [x] Notificaciones automáticas a clientes
+  - [x] Optimización SSE (250ms polling, heartbeat, anti-buffering)
   - [ ] Historial de partidas anteriores
-- [ ] 🐳 Docker en producción
+- [x] 🐳 Docker en producción
+  - [x] Dockerfiles para todos los servicios
+  - [x] Docker Compose con orquestación completa
+  - [x] Gitea Actions CI/CD pipeline
+  - [x] Separación URLs internas/externas para SSL
+  - [x] Red principal para Nginx Proxy Manager
+  - [x] Health checks y restart policies
 - [ ] 📱 PWA support
 - [ ] 🌍 Multi-idioma (EN/ES)
 - [ ] 🔒 Sistema de salas privadas

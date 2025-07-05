@@ -15,6 +15,83 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - PWA support
 - Multi-idioma
 
+## [0.0.9-alpha] - 2025-07-05
+
+### Added
+- **🐳 Docker Production Environment**: Sistema completo de containerización
+  - Dockerfiles individuales para server, client y admin
+  - Docker Compose con orquestación completa
+  - Health checks automáticos para todos los servicios
+  - Restart policies para alta disponibilidad
+- **⚙️ Gitea Actions CI/CD Pipeline**: Automatización completa de deployment
+  - Build automático de imágenes Docker
+  - Push a registry interno gitea.interno.com/nucleo000
+  - Conditional building basado en archivos modificados
+  - Deploy automático en main branch
+- **🌐 Production Network Architecture**: Arquitectura de redes optimizada
+  - Red "principal" para Nginx Proxy Manager
+  - Red interna "snatchgame-network" para comunicación entre servicios
+  - Separación de URLs internas (HTTP) y externas (HTTPS)
+- **🔧 Environment-based URL Configuration**: URLs dinámicas según ambiente
+  - SERVER_URL para comunicación interna entre contenedores
+  - PUBLIC_SERVER_URL para comunicación frontend-backend
+  - Configuración automática via /api/config endpoints
+
+### Changed
+- **⚡ SSE Performance Optimizations**: Comunicación admin optimizada
+  - Polling reducido de 500ms a 250ms para updates más rápidos
+  - Headers anti-buffering (X-Accel-Buffering, Content-Encoding)
+  - Heartbeat mechanism cada 30 segundos
+  - Auto-reconexión cliente cada 5 segundos en caso de error
+- **🏗️ Production URLs**: Configuración de producción completa
+  - snatchGame.interno.com (Cliente UI)
+  - snatchGameServer.interno.com (Servidor Colyseus)  
+  - snatchgGameAdmin.interno.com (Admin UI)
+- **📦 Build Process**: Optimización del proceso de build
+  - build:prod script para omitir generación de tipos en Docker
+  - npm ci para instalaciones más rápidas y reproducibles
+  - Multi-stage builds para imágenes más pequeñas
+
+### Fixed
+- **🔌 SSL Certificate Issues**: Separación URLs interna/externa
+  - URLs HTTPS para comunicación navegador-servidor (frontend)
+  - URLs HTTP para comunicación contenedor-contenedor (backend)
+  - Resuelve errores de certificado SSL en comunicación interna
+- **🎯 Admin Service URL Configuration**: URLs dinámicas basadas en ambiente
+  - AdminService obtiene URL desde /api/config en lugar de hardcoded localhost
+  - Soporte completo para desarrollo y producción
+  - Inicialización async de URLs antes de llamadas API
+- **📊 SSE Connection Stability**: Mejoras en estabilidad de conexión
+  - Manejo mejorado de heartbeat messages
+  - Logging detallado para debugging
+  - Cleanup apropiado de intervalos en disconnection
+
+### Technical  
+- **🐳 Docker Configuration**:
+  - Puertos de producción: 3067 (server), 3010 (client), 3011 (admin)  
+  - Alpine Linux base images para menor tamaño
+  - wget para health checks (más ligero que curl)
+- **📡 Network Communication**:
+  - Separación limpia entre comunicación interna y externa
+  - Optimización de headers SSE para mejor performance
+  - Express middleware optimizado para SSE endpoints
+- **🔧 Environment Management**:
+  - Variables de entorno separadas por servicio
+  - Runtime configuration via API endpoints
+  - Support para development y production environments
+
+### Infrastructure
+- **🏗️ Complete Production Setup**: Sistema listo para producción
+  - Docker registry interno configurado
+  - CI/CD pipeline completamente automático
+  - High availability con health checks y restart policies
+  - Network isolation y security best practices
+- **📊 Monitoring & Debugging**: Herramientas de monitoreo mejoradas
+  - Logging estructurado con timestamps
+  - Connection tracking para SSE
+  - Performance metrics para fetch requests
+  - Detailed error handling y reporting
+
 ## [0.0.8-alpha] - 2025-07-04
 
 ### Added
