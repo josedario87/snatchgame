@@ -47,6 +47,8 @@ class AdminService {
     await this.initializeServerUrl()
     
     this.callback = callback
+    
+    // Configure EventSource with better error handling
     this.eventSource = new EventSource('/api/sse')
 
     this.eventSource.onopen = () => {
@@ -57,11 +59,14 @@ class AdminService {
 
     this.eventSource.onmessage = (event) => {
       try {
+        // Skip heartbeat messages
+        if (event.data.trim() === '') return
+        
         const data = JSON.parse(event.data)
         console.log('[AdminService] SSE message received:', data.type, data.timestamp)
         this.callback?.(data)
       } catch (error) {
-        console.error('[AdminService] Error parsing SSE message:', error)
+        console.error('[AdminService] Error parsing SSE message:', error, 'Raw data:', event.data)
       }
     }
 
@@ -69,6 +74,14 @@ class AdminService {
       console.error('[AdminService] SSE connection error:', error)
       this.isConnected = false
       this.connectionCallback?.(false)
+      
+      // Auto-reconnect after 5 seconds
+      setTimeout(() => {
+        if (!this.isConnected) {
+          console.log('[AdminService] Attempting to reconnect...')
+          this.connect(this.callback!)
+        }
+      }, 5000)
     }
   }
 

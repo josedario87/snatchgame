@@ -9,8 +9,21 @@ dotenv.config({ path: `.env.${ENV}` });
 const app = express();
 const PORT = process.env.PORT || 3002;
 
+// Disable Express poweredBy header for performance
+app.disable('x-powered-by');
+
 // Parse JSON bodies
 app.use(express.json());
+
+// Optimize Express for SSE performance
+app.use((req, res, next) => {
+    // Disable buffering for SSE endpoints
+    if (req.path === '/api/sse') {
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+    }
+    next();
+});
 
 // Track SSE connections
 let sseConnections = 0;
@@ -41,16 +54,24 @@ app.get('/api/sse', (req, res) => {
     const connectionId = sseConnections;
     console.log(`[SSE] New connection #${connectionId} established. Total: ${sseConnections}`);
     
+    // Optimized headers for better performance
     res.writeHead(200, {
         'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Connection': 'keep-alive',
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Cache-Control'
+        'Access-Control-Allow-Headers': 'Cache-Control',
+        'X-Accel-Buffering': 'no', // Disable nginx buffering
+        'Content-Encoding': 'identity' // Disable compression
     });
 
     // Send initial connection message
     res.write('data: {"type": "connected", "message": "SSE connection established"}\n\n');
+    
+    // Send keepalive heartbeat every 30 seconds
+    const heartbeatInterval = setInterval(() => {
+        res.write(': heartbeat\n\n');
+    }, 30000);
 
     // Set up polling interval for game state updates
     const pollInterval = setInterval(async () => {
@@ -90,13 +111,14 @@ app.get('/api/sse', (req, res) => {
                 message: `Error fetching game stats: ${error.message}`
             })}\n\n`);
         }
-    }, 500); // Poll every 500ms
+    }, 250); // Poll every 250ms for faster updates
 
     // Clean up on client disconnect
     req.on('close', () => {
         sseConnections--;
         console.log(`[SSE] Connection #${connectionId} closed. Total: ${sseConnections}`);
         clearInterval(pollInterval);
+        clearInterval(heartbeatInterval);
     });
 });
 
