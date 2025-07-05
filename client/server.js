@@ -12,21 +12,29 @@ const PORT = process.env.PORT || 3000;
 // Configure MIME types for modules
 express.static.mime.define({'application/javascript': ['js', 'mjs']});
 
-// Serve static files (prioritize dist for production)
-app.use(express.static('dist'));
-app.use(express.static('.'));
+// Serve static files based on environment
+if (ENV === 'production') {
+    // Production: serve from dist first
+    app.use(express.static('dist'));
+    app.use(express.static('.'));
+} else {
+    // Development: serve from current directory only
+    app.use(express.static('.'));
+}
 
-// Serve main HTML file (prioritize dist for production)
+// Serve main HTML file based on environment
 app.get('/', (req, res) => {
-    const distIndexPath = path.join(__dirname, 'dist', 'index.html');
-    const devIndexPath = path.join(__dirname, 'index.html');
-    
-    // Try to serve from dist first (production build), fallback to dev
-    const fs = require('fs');
-    if (fs.existsSync(distIndexPath)) {
-        res.sendFile(distIndexPath);
+    if (ENV === 'production') {
+        const distIndexPath = path.join(__dirname, 'dist', 'index.html');
+        const fs = require('fs');
+        if (fs.existsSync(distIndexPath)) {
+            res.sendFile(distIndexPath);
+        } else {
+            res.status(500).send('Production build not found. Run npm run build first.');
+        }
     } else {
-        res.sendFile(devIndexPath);
+        // Development: serve dev index.html
+        res.sendFile(path.join(__dirname, 'index.html'));
     }
 });
 
