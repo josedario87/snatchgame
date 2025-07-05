@@ -1,6 +1,9 @@
 # Client Dockerfile - Vue 3 Client UI
 FROM node:20-alpine
 
+# Install git for npm dependencies
+RUN apk add --no-cache git
+
 # Set working directory
 WORKDIR /app
 

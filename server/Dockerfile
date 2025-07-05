@@ -1,6 +1,9 @@
 # Server Dockerfile - Colyseus Server
 FROM node:20-alpine
 
+# Install git for npm dependencies
+RUN apk add --no-cache git
+
 # Set working directory
 WORKDIR /app
 
