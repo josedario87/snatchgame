@@ -13,17 +13,17 @@ export class TokenInventory extends Schema {
 }
 
 export class TradeOffer extends Schema {
-    @type("string") id: string;
-    @type("string") offererId: string;
-    @type("string") targetId: string;
+    @type("string") id: string = "";
+    @type("string") offererId: string = "";
+    @type("string") targetId: string = "";
     @type(TokenInventory) offering = new TokenInventory();
     @type(TokenInventory) requesting = new TokenInventory();
     @type("string") status: string = "pending"; // "pending" | "accepted" | "rejected" | "snatched" | "cancelled"
 }
 
 export class Player extends Schema {
-    @type("string") id: string;
-    @type("string") name: string;
+    @type("string") id: string = "";
+    @type("string") name: string = "";
     @type("string") producerRole: string = "turkey"; // "turkey" | "coffee" | "corn"
     @type(TokenInventory) tokens = new TokenInventory();
     @type("number") points: number = 0;
@@ -101,7 +101,7 @@ export class GameRoom extends Room<GameState> {
     }
 
     private calculatePoints(player: Player): number {
-        const ownTokens = player.tokens[player.producerRole as keyof TokenInventory];
+        const ownTokens = player.tokens[player.producerRole as keyof TokenInventory] || 0;
         const otherTokens = (player.tokens.turkey + player.tokens.coffee + player.tokens.corn) - ownTokens;
         return ownTokens * 1 + otherTokens * 2;
     }
@@ -284,7 +284,7 @@ export class GameRoom extends Room<GameState> {
         return {
             roomId: this.roomId,
             name: 'game',
-            clients: clients.length,
+            clientCount: clients.length,
             maxClients: this.maxClients,
             locked: this.locked,
             state: this.state,

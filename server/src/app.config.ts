@@ -65,7 +65,7 @@ export default config({
                 let totalPlayers = 0;
                 let activeGames = 0;
                 const gameRooms = [];
-                const allPlayers = [];
+                const allPlayers: any[] = [];
 
                 for (const room of rooms) {
                     if (room.name === 'game') {
@@ -88,7 +88,7 @@ export default config({
                             // Extract player information with their tokens
                             if (roomData.state && roomData.state.players) {
                                 // Use forEach to iterate over MapSchema properly
-                                roomData.state.players.forEach((player, playerId) => {
+                                roomData.state.players.forEach((player: any, playerId: string) => {
                                     // Skip internal MapSchema properties
                                     if (playerId.startsWith('$') || playerId === 'deletedItems') {
                                         return;
