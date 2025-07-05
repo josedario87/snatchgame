@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # Servidor Colyseus
+  snatchgame-server:
+    image: gitea.interno.com/nucleo000/snatchgame-server:latest
+    container_name: snatchgame-server
+    ports:
+      - "2567:2567"
+    environment:
+      - NODE_ENV=production
+      - PORT=2567
+    networks:
+      - snatchgame-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:2567/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Cliente Vue UI
+  snatchgame-client:
+    image: gitea.interno.com/nucleo000/snatchgame-client:latest
+    container_name: snatchgame-client
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - VITE_SERVER_URL=http://snatchgame-server:2567
+    depends_on:
+      - snatchgame-server
+    networks:
+      - snatchgame-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Admin Dashboard
+  snatchgame-admin:
+    image: gitea.interno.com/nucleo000/snatchgame-admin:latest
+    container_name: snatchgame-admin
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - VITE_SERVER_URL=http://snatchgame-server:2567
+    depends_on:
+      - snatchgame-server
+    networks:
+      - snatchgame-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  snatchgame-network:
+    driver: bridge
