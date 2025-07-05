@@ -12,13 +12,22 @@ const PORT = process.env.PORT || 3000;
 // Configure MIME types for modules
 express.static.mime.define({'application/javascript': ['js', 'mjs']});
 
-// Serve static files from current directory and dist
-app.use(express.static('.'));
+// Serve static files (prioritize dist for production)
 app.use(express.static('dist'));
+app.use(express.static('.'));
 
-// Serve main HTML file
+// Serve main HTML file (prioritize dist for production)
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    const distIndexPath = path.join(__dirname, 'dist', 'index.html');
+    const devIndexPath = path.join(__dirname, 'index.html');
+    
+    // Try to serve from dist first (production build), fallback to dev
+    const fs = require('fs');
+    if (fs.existsSync(distIndexPath)) {
+        res.sendFile(distIndexPath);
+    } else {
+        res.sendFile(devIndexPath);
+    }
 });
 
 // Health check endpoint

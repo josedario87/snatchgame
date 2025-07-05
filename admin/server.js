@@ -156,13 +156,22 @@ app.post('/api/admin/cancel-game', async (req, res) => {
 // Configure MIME types for modules
 express.static.mime.define({'application/javascript': ['js', 'mjs']});
 
-// Serve static files from current directory and dist (AFTER API routes)
-app.use(express.static('.'));
+// Serve static files (prioritize dist for production, AFTER API routes)
 app.use(express.static('dist'));
+app.use(express.static('.'));
 
-// Serve main HTML file for SPA routes
+// Serve main HTML file for SPA routes (prioritize dist for production)
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    const distIndexPath = path.join(__dirname, 'dist', 'index.html');
+    const devIndexPath = path.join(__dirname, 'index.html');
+    
+    // Try to serve from dist first (production build), fallback to dev
+    const fs = require('fs');
+    if (fs.existsSync(distIndexPath)) {
+        res.sendFile(distIndexPath);
+    } else {
+        res.sendFile(devIndexPath);
+    }
 });
 
 app.listen(PORT, () => {
