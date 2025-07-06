@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  # Servidor Colyseus
+  snatchgame-server:
+    image: gitea.interno.com/nucleo000/snatchgame-server:latest
+    container_name: snatchgame-server
+    ports:
+      - "3067:2567"
+    environment:
+      - NODE_ENV=production
+      - PORT=2567
+    networks:
+      - snatchgame-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:2567/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Cliente Vue UI
+  snatchgame-client:
+    image: gitea.interno.com/nucleo000/snatchgame-client:latest
+    container_name: snatchgame-client
+    ports:
+      - "3010:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - SERVER_URL=http://snatchgame-server:2567
+      - PUBLIC_SERVER_URL=NGROK_SERVER_URL  # Se actualizará dinámicamente
+    depends_on:
+      - snatchgame-server
+    networks:
+      - snatchgame-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Admin Dashboard
+  snatchgame-admin:
+    image: gitea.interno.com/nucleo000/snatchgame-admin:latest
+    container_name: snatchgame-admin
+    ports:
+      - "3011:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - SERVER_URL=http://snatchgame-server:2567
+      - PUBLIC_SERVER_URL=NGROK_SERVER_URL  # Se actualizará dinámicamente
+    depends_on:
+      - snatchgame-server
+    networks:
+      - snatchgame-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  snatchgame-network:
+    driver: bridge
