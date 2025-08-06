@@ -34,16 +34,16 @@ export class GameRoom extends Room<GameState> {
   }
 
   onJoin(client: Client, options: any) {
-    console.log(`[GameRoom] ${client.sessionId} joined room ${this.roomId}`);
+    console.log(`[GameRoom] ${client.sessionId} joined room ${this.roomId} with name: ${options.playerName}`);
 
+    // Use the playerName passed from the lobby - don't generate a new one!
     const playerName = options.playerName || "player";
-    const uniqueName = NameManager.getInstance().generateUniquePlayerName(playerName, client.sessionId);
     
-    this.state.addPlayer(client.sessionId, uniqueName);
+    this.state.addPlayer(client.sessionId, playerName);
 
     client.send("playerInfo", {
       sessionId: client.sessionId,
-      name: uniqueName,
+      name: playerName,
       roomId: this.roomId
     });
 
@@ -58,7 +58,7 @@ export class GameRoom extends Room<GameState> {
     const player = this.state.players.get(client.sessionId);
     if (player) {
       player.connected = false;
-      NameManager.getInstance().releasePlayerName(client.sessionId);
+      // Don't release the name here - it's managed by the LobbyRoom
     }
 
     if (this.state.gameStatus === GameStatus.PLAYING) {
@@ -90,9 +90,7 @@ export class GameRoom extends Room<GameState> {
       clearInterval(this.gameInterval);
     }
 
-    this.state.players.forEach(player => {
-      NameManager.getInstance().releasePlayerName(player.sessionId);
-    });
+    // Don't release names here - they're managed by the LobbyRoom
   }
 
   private startGame() {

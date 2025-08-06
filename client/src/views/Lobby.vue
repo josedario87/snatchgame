@@ -131,7 +131,8 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  colyseusService.leaveCurrentRoom();
+  // Don't leave the current room - it might be a game room now
+  console.log('Lobby component unmounting...');
 });
 
 async function updateName() {
@@ -143,9 +144,21 @@ async function updateName() {
 
 async function handleQuickPlay() {
   isJoining.value = true;
+  console.log('Starting quickPlay...');
   try {
-    await colyseusService.quickPlay();
-    router.push('/game');
+    const gameRoom = await colyseusService.quickPlay();
+    console.log('Game room joined:', gameRoom?.id, 'Full room object:', gameRoom);
+    
+    // Leave the lobby room before navigating
+    if (colyseusService.lobbyRoom.value) {
+      console.log('Leaving lobby room...');
+      colyseusService.lobbyRoom.value.leave();
+      colyseusService.lobbyRoom.value = null;
+    }
+    
+    console.log('Navigating to /game...');
+    await router.push('/game');
+    console.log('Navigation complete');
   } catch (error) {
     console.error('Failed to join game:', error);
     isJoining.value = false;
@@ -155,7 +168,13 @@ async function handleQuickPlay() {
 async function joinRoom(roomId: string) {
   isJoining.value = true;
   try {
-    await colyseusService.joinGameRoom(roomId);
+    // For direct room joining, we can use joinGameRoom directly
+    const gameRoom = await colyseusService.joinGameRoom(roomId);
+    // Leave the lobby room before navigating
+    if (colyseusService.lobbyRoom.value) {
+      colyseusService.lobbyRoom.value.leave();
+      colyseusService.lobbyRoom.value = null;
+    }
     router.push('/game');
   } catch (error) {
     console.error('Failed to join room:', error);

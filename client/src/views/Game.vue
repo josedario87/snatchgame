@@ -37,6 +37,7 @@
         <div class="waiting-message">
           <div class="spinner"></div>
           <h2>Waiting for opponent...</h2>
+          <p>Players in room: {{ players.length }}/2</p>
           <p>Game will start when another player joins</p>
         </div>
       </div>
@@ -90,15 +91,45 @@ const sessionId = computed(() => colyseusService.sessionId.value);
 let clickTimeout: NodeJS.Timeout;
 
 onMounted(() => {
+  console.log('Game component mounted');
+  console.log('colyseusService.gameRoom:', colyseusService.gameRoom);
+  console.log('colyseusService.gameRoom.value:', colyseusService.gameRoom.value);
   const room = colyseusService.gameRoom.value;
+  console.log('Current game room:', room);
   
   if (!room) {
+    console.error('No game room found, redirecting to lobby...');
     router.push('/');
     return;
   }
+  
+  console.log('Setting up game room listeners...');
 
   const $ = getStateCallbacks(room);
 
+  // Wait for the initial state sync
+  room.onStateChange.once((state) => {
+    console.log('Initial state received:', state);
+    gameStatus.value = state.gameStatus || 'waiting';
+    timeRemaining.value = state.timeRemaining || 600;
+    winner.value = state.winner || '';
+    
+    // Load existing players if they exist
+    if (state.players) {
+      console.log('Players map exists in initial state, loading players...');
+      state.players.forEach((player: any, sessionId: string) => {
+        console.log('Loading initial player:', player);
+        players.value.push({
+          sessionId: player.sessionId,
+          name: player.name,
+          clicks: player.clicks,
+          connected: player.connected
+        });
+      });
+    }
+  });
+
+  // Listen for future changes
   $(room.state).listen("gameStatus", (value: string) => {
     gameStatus.value = value;
   });
@@ -112,12 +143,16 @@ onMounted(() => {
   });
 
   $(room.state).players.onAdd((player: any) => {
-    players.value.push({
-      sessionId: player.sessionId,
-      name: player.name,
-      clicks: player.clicks,
-      connected: player.connected
-    });
+    // Check if player already exists before adding
+    const exists = players.value.find(p => p.sessionId === player.sessionId);
+    if (!exists) {
+      players.value.push({
+        sessionId: player.sessionId,
+        name: player.name,
+        clicks: player.clicks,
+        connected: player.connected
+      });
+    }
 
     $(player).listen("clicks", (value: number) => {
       const p = players.value.find(p => p.sessionId === player.sessionId);
@@ -137,21 +172,31 @@ onMounted(() => {
     }
   });
 
+  room.onMessage("playerInfo", (info) => {
+    console.log('Received playerInfo:', info);
+    colyseusService.sessionId.value = info.sessionId;
+    colyseusService.playerName.value = info.name;
+  });
+
   room.onMessage("gameStart", () => {
     console.log("Game started!");
+    gameStatus.value = 'playing';
   });
 
   room.onMessage("gameEnd", (data) => {
     console.log("Game ended!", data);
+    gameStatus.value = 'finished';
   });
 
   room.onMessage("gamePaused", () => {
     console.log("Game paused");
+    gameStatus.value = 'paused';
   });
 
   room.onMessage("gameRestart", () => {
     console.log("Game restarting");
     players.value.forEach(p => p.clicks = 0);
+    gameStatus.value = 'waiting';
   });
 });
 
@@ -180,7 +225,7 @@ function formatTime(seconds: number): string {
 }
 
 function leaveGame() {
-  colyseusService.leaveCurrentRoom();
+  colyseusService.leaveGame();
   router.push('/');
 }
 </script>

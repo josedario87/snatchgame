@@ -85,20 +85,30 @@ export class LobbyRoom extends Room<LobbyState> {
     if (!player || player.inGame) return;
 
     try {
-      const reservation = await matchMaker.joinOrCreate("game", {
-        playerName: player.name
-      });
+      // First try to find an available room
+      const rooms = await matchMaker.query({ name: "game", locked: false });
+      let targetRoomId: string;
+      
+      // Find a room with less than 2 players
+      const availableRoom = rooms.find(room => room.clients < 2);
+      
+      if (availableRoom) {
+        targetRoomId = availableRoom.roomId;
+      } else {
+        // If no room available, create a new one
+        const newRoom = await matchMaker.createRoom("game", {});
+        targetRoomId = newRoom.roomId;
+      }
 
       this.state.setPlayerInGame(client.sessionId, true);
 
-      client.send("roomReservation", {
-        sessionId: reservation.sessionId,
-        room: reservation.room
+      // Send the roomId to the client
+      client.send("gameJoined", {
+        roomId: targetRoomId
       });
 
-      setTimeout(() => {
-        client.leave();
-      }, 1000);
+      // Don't auto-leave, let the client handle it
+      // The client will leave the lobby after successfully joining the game room
 
     } catch (error) {
       console.error("[LobbyRoom] Error in quick play:", error);
@@ -113,20 +123,22 @@ export class LobbyRoom extends Room<LobbyState> {
     if (!player || player.inGame) return;
 
     try {
-      const reservation = await matchMaker.joinById(roomId, {
-        playerName: player.name
-      });
+      // Verify the room exists and is available
+      const rooms = await matchMaker.query({ roomId });
+      
+      if (rooms.length === 0 || rooms[0].clients >= 2) {
+        throw new Error("Room not available");
+      }
 
       this.state.setPlayerInGame(client.sessionId, true);
 
-      client.send("roomReservation", {
-        sessionId: reservation.sessionId,
-        room: reservation.room
+      // Send the roomId to the client
+      client.send("gameJoined", {
+        roomId: roomId
       });
 
-      setTimeout(() => {
-        client.leave();
-      }, 1000);
+      // Don't auto-leave, let the client handle it
+      // The client will leave the lobby after successfully joining the game room
 
     } catch (error) {
       console.error("[LobbyRoom] Error joining room:", error);
