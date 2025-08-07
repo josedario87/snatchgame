@@ -188,6 +188,17 @@ This will start:
 - Server on http://localhost:3000
 - Client on http://localhost:5173
 
+### Environment Variables (Client)
+
+Create `client/.env` (or copy `client/.env.example`) to configure endpoints:
+
+```
+VITE_WS_URL=ws://localhost:3000
+VITE_API_URL=http://localhost:3000/api
+```
+
+For production over HTTPS, use `wss://` for `VITE_WS_URL` and an HTTPS API base for `VITE_API_URL`.
+
 ## URLs
 
 - **Game**: http://localhost:5173

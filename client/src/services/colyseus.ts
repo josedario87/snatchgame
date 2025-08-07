@@ -23,6 +23,7 @@ export interface AvailableRoom {
 class ColyseusService {
   private client: Client;
   private currentRoom: Room | null = null;
+  private apiBase: string;
   
   public lobbyRoom: Ref<Room | null> = ref(null);
   public gameRoom: Ref<Room | null> = ref(null);
@@ -30,7 +31,16 @@ class ColyseusService {
   public sessionId: Ref<string> = ref("");
 
   constructor() {
-    this.client = new Client("ws://localhost:3000");
+    const defaultHost = typeof window !== "undefined" ? window.location.hostname : "localhost";
+    const defaultProtocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "wss" : "ws";
+    const defaultPort = 3000;
+    const fallbackUrl = `${defaultProtocol}://${defaultHost}:${defaultPort}`;
+    const url = import.meta.env.VITE_WS_URL || fallbackUrl;
+    this.client = new Client(url);
+
+    const httpProtocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "https" : "http";
+    const apiFallback = `${httpProtocol}://${defaultHost}:${defaultPort}/api`;
+    this.apiBase = (import.meta.env as any).VITE_API_URL || apiFallback;
   }
 
   async joinLobby(): Promise<Room> {
@@ -170,7 +180,7 @@ class ColyseusService {
 
   async fetchRooms(): Promise<any[]> {
     try {
-      const response = await fetch("http://localhost:3000/api/rooms");
+      const response = await fetch(`${this.apiBase}/rooms`);
       return await response.json();
     } catch (error) {
       console.error("Failed to fetch rooms:", error);
@@ -180,7 +190,7 @@ class ColyseusService {
 
   async fetchRoomStats(roomId: string): Promise<any> {
     try {
-      const response = await fetch(`http://localhost:3000/api/rooms/${roomId}/stats`);
+      const response = await fetch(`${this.apiBase}/rooms/${roomId}/stats`);
       return await response.json();
     } catch (error) {
       console.error("Failed to fetch room stats:", error);
@@ -189,24 +199,24 @@ class ColyseusService {
   }
 
   async pauseRoom(roomId: string): Promise<void> {
-    await fetch(`http://localhost:3000/api/rooms/${roomId}/pause`, { method: "POST" });
+    await fetch(`${this.apiBase}/rooms/${roomId}/pause`, { method: "POST" });
   }
 
   async resumeRoom(roomId: string): Promise<void> {
-    await fetch(`http://localhost:3000/api/rooms/${roomId}/resume`, { method: "POST" });
+    await fetch(`${this.apiBase}/rooms/${roomId}/resume`, { method: "POST" });
   }
 
   async restartRoom(roomId: string): Promise<void> {
-    await fetch(`http://localhost:3000/api/rooms/${roomId}/restart`, { method: "POST" });
+    await fetch(`${this.apiBase}/rooms/${roomId}/restart`, { method: "POST" });
   }
 
   async kickPlayer(roomId: string, playerId: string): Promise<void> {
-    await fetch(`http://localhost:3000/api/rooms/${roomId}/kick/${playerId}`, { method: "POST" });
+    await fetch(`${this.apiBase}/rooms/${roomId}/kick/${playerId}`, { method: "POST" });
   }
 
   async fetchGlobalStats(): Promise<any> {
     try {
-      const response = await fetch("http://localhost:3000/api/stats");
+      const response = await fetch(`${this.apiBase}/stats`);
       return await response.json();
     } catch (error) {
       console.error("Failed to fetch global stats:", error);
