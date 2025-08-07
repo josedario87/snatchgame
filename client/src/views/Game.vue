@@ -107,26 +107,12 @@ onMounted(() => {
 
   const $ = getStateCallbacks(room);
 
-  // Wait for the initial state sync
+  // Wait for the initial state sync (do not manually push players here to avoid duplicates)
   room.onStateChange.once((state) => {
     console.log('Initial state received:', state);
     gameStatus.value = state.gameStatus || 'waiting';
     timeRemaining.value = state.timeRemaining || 600;
     winner.value = state.winner || '';
-    
-    // Load existing players if they exist
-    if (state.players) {
-      console.log('Players map exists in initial state, loading players...');
-      state.players.forEach((player: any, sessionId: string) => {
-        console.log('Loading initial player:', player);
-        players.value.push({
-          sessionId: player.sessionId,
-          name: player.name,
-          clicks: player.clicks,
-          connected: player.connected
-        });
-      });
-    }
   });
 
   // Listen for future changes
@@ -142,12 +128,13 @@ onMounted(() => {
     winner.value = value;
   });
 
-  $(room.state).players.onAdd((player: any) => {
-    // Check if player already exists before adding
-    const exists = players.value.find(p => p.sessionId === player.sessionId);
+  // Keep a single source of truth via onAdd/onRemove using the map key (sessionId)
+  $(room.state).players.onAdd((player: any, key: string) => {
+    const sessionKey = key; // key is the sessionId used in the MapSchema
+    const exists = players.value.find(p => p.sessionId === sessionKey);
     if (!exists) {
       players.value.push({
-        sessionId: player.sessionId,
+        sessionId: sessionKey,
         name: player.name,
         clicks: player.clicks,
         connected: player.connected
@@ -155,18 +142,18 @@ onMounted(() => {
     }
 
     $(player).listen("clicks", (value: number) => {
-      const p = players.value.find(p => p.sessionId === player.sessionId);
+      const p = players.value.find(p => p.sessionId === sessionKey);
       if (p) p.clicks = value;
     });
 
     $(player).listen("connected", (value: boolean) => {
-      const p = players.value.find(p => p.sessionId === player.sessionId);
+      const p = players.value.find(p => p.sessionId === sessionKey);
       if (p) p.connected = value;
     });
   });
 
-  $(room.state).players.onRemove((player: any) => {
-    const index = players.value.findIndex(p => p.sessionId === player.sessionId);
+  $(room.state).players.onRemove((player: any, key: string) => {
+    const index = players.value.findIndex(p => p.sessionId === key);
     if (index !== -1) {
       players.value.splice(index, 1);
     }
