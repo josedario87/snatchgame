@@ -1,0 +1,16 @@
+sequenceDiagram
+  participant OR as Orchestrator
+  participant MM as Matchmaker
+  participant P as PlayerPool
+  participant R as RoomFactory
+
+  OR->>MM: start phase (Gx) for ALL
+  MM->>P: collect all available players (200)
+  MM->>P: shuffle randomly
+  loop pair players
+    MM->>R: create room with pair (P1,P2) and roles
+    R-->>MM: roomId
+  end
+  MM-->>OR: rooms created for all pairs
+  OR->>R: broadcast startRound(1) to all rooms
+

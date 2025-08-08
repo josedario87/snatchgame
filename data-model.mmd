@@ -1,0 +1,43 @@
+classDiagram
+  class Player {
+    +string id
+    +string name
+    +int    pavoTokens   // tokens tipo P1
+    +int    eloteTokens  // tokens tipo P2
+    +number shameTokens  // visible en próxima partida
+  }
+  note for Player "Scoring: como P1 => pavo*1 + elote*2; como P2 => elote*1 + pavo*2; total = suma"
+
+  class GameSession {
+    +string id
+    +string gameType  // G1..G5
+    +string player1Id
+    +string player2Id
+    +int    currentRound // 1..3
+    +Round[] rounds      // length=3
+    +Date   createdAt
+  }
+
+  class Round {
+    +int index           // 1,2,3
+    +string p1Action     // offer|no_offer|forced_offer
+    +string p2Action     // accept|reject|snatch|null
+    +boolean forcedByP2  // G2
+    +boolean reported    // G4
+    +boolean shameAssigned // G3
+    +number outcomeP1
+    +number outcomeP2
+    +boolean isThird
+  }
+
+  class LeaderboardEntry {
+    +string playerId
+    +number scoreAsP1       // P1: pavo*1 + elote*2
+    +number scoreAsP2       // P2: elote*1 + pavo*2
+    +number aggregateScore  // scoreAsP1 + scoreAsP2
+    +Date   updatedAt
+  }
+
+  Player "1" -- "0..*" GameSession : participa
+  GameSession "1" o-- "3" Round : incluye
+  Player "1" -- "0..*" LeaderboardEntry : puntuación

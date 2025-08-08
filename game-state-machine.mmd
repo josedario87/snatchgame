@@ -1,0 +1,20 @@
+stateDiagram-v2
+  [*] --> Lobby
+  Lobby --> Matching : join/ready
+  Matching --> Setup : asignar roles + variante
+  Setup --> PreChat : si G5 (cheap talk)
+  Setup --> Round1 : si no G5
+  PreChat --> Round1 : fin ventana chat (1 min)
+  Round1 --> Round2 : resultado cerrado
+  Round2 --> Round3 : resultado cerrado
+  Round3 --> PostGame : resultado cerrado
+  PostGame --> Commit : registrar solo R3
+  Commit --> Rematch : liberar jugadores
+  Rematch --> [*]
+
+  note right of Round1
+    Las decisiones pueden ser:
+    - Secuenciales (G1,G2,G3,G4,G5)
+    - Simultáneas (si en el futuro aplica)
+  end note
+

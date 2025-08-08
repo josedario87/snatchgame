@@ -1,0 +1,55 @@
+sequenceDiagram
+  participant P1 as Player 1
+  participant P2 as Player 2
+  participant S as Server/Room
+  participant AJ as AutoJudge G4
+
+  S->>P1: startRound(gameType, roundNo, role=P1)
+  S->>P2: startRound(gameType, roundNo, role=P2)
+
+  alt G2 (P2 decide forzar)
+    P2->>S: decide(force or no_force)
+    S-->>P1: forcedOffer = true/false
+  else Otros juegos
+    Note over P1,P2: Sin decision previa de P2
+  end
+
+  P1->>S: actionP1(offer or no_offer) - o forzado en G2
+  S-->>P2: notifyP1Action(offer or no_offer)
+
+  alt no_offer
+    S-->>P1: outcome(10,10)
+    S-->>P2: outcome(10,10)
+  else offer
+    P2->>S: actionP2(accept / reject / snatch)
+    alt accept
+      S-->>P1: outcome(15,15)
+      S-->>P2: outcome(15,15)
+    else reject
+      S-->>P1: outcome(10,10)
+      S-->>P2: outcome(10,10)
+    else snatch
+      opt G4 denuncia
+        P1->>S: report: yes or no
+        alt report=yes
+          S->>AJ: aplicar sancion
+          AJ-->>S: confiscar tokens P2
+          S-->>P1: outcome(10,0)
+          S-->>P2: outcome(10,0)
+        else report=no
+          S-->>P1: outcome(5,20)
+          S-->>P2: outcome(5,20)
+        end
+      opt G3 repudio
+        P1->>S: shameToken: assign yes or no
+        S-->>P2: actualizar contador verguenza (proxima partida)
+        end
+    end
+  end
+
+  opt Round3 - persistir resultado R3
+    S->>S: actualizar leaderboard y analytics
+  end
+  S-->>P1: endRound
+  S-->>P2: endRound
+  end

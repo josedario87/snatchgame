@@ -1,0 +1,9 @@
+flowchart TD
+  A[Emparejar jugadores al azar] --> B[Asignar roles P1/P2]
+  B --> C[Seleccionar variante G1..G5]
+  C --> D[Iniciar partida de 3 rondas]
+  D --> R1[Ronda 1] --> R2[Ronda 2] --> R3[Ronda 3]
+  R3 --> E[Registrar SOLO resultado de R3]
+  E --> F[Actualizar leaderboard/analytics]
+  F --> G[Reemparejar y posible cambio de roles]
+

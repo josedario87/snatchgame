@@ -1,0 +1,8 @@
+flowchart TD
+  A3[P1: Ofrecer 5?] -->|No ofrecer| O1[10,10]
+  A3 -->|Ofrecer| B3[P2: Aceptar / Rechazar / Robar]
+  B3 -->|Aceptar| O2[15,15]
+  B3 -->|Rechazar| O3[10,10]
+  B3 -->|Robar| C3[P1: Asignar ficha de verguenza?]
+  C3 -->|Sí| O4a[5,20 +1 verguenza proxima partida]
+  C3 -->|No| O4b[5,20]
