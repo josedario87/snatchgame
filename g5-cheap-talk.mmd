@@ -1,7 +1,7 @@
 flowchart TD
-  Pre[Chat previo 1 min - no vinculante] --> A5[P1: Ofrecer 5?]
-  A5 -->|No ofrecer| O1[10,10]
+  Pre[Chat previo 1 min - no vinculante] --> A5[P1: Proponer oferta?]
+  A5 -->|No ofrecer| O1[Sin cambios]
   A5 -->|Ofrecer| B5[P2: Aceptar / Rechazar / Robar]
-  B5 -->|Aceptar| O2[15,15]
-  B5 -->|Rechazar| O3[10,10]
-  B5 -->|Robar| O4[5,20]
+  B5 -->|Aceptar| O2[Intercambiar según oferta/pedido]
+  B5 -->|Rechazar| O3[Sin cambios]
+  B5 -->|Robar| O4[Transferir solo lo ofrecido a P2]

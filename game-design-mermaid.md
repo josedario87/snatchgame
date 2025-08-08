@@ -102,110 +102,106 @@ sequenceDiagram
     Note over P1,P2: Sin decision previa de P2
   end
 
-  P1->>S: actionP1(offer or no_offer) - o forzado en G2
-  S-->>P2: notifyP1Action(offer or no_offer)
-
   alt no_offer
-    S-->>P1: outcome(10,10)
-    S-->>P2: outcome(10,10)
-  else offer
+    P1->>S: noOffer()
+    S-->>P1: sin cambios de tokens
+    S-->>P2: sin cambios de tokens
+  else oferta
+    P1->>S: proposeOffer({offer:{pavo,elote}, request:{pavo,elote}})
+    S-->>P2: offerAvailable
     P2->>S: actionP2(accept / reject / snatch)
     alt accept
-      S-->>P1: outcome(15,15)
-      S-->>P2: outcome(15,15)
+      S-->>P1: transfer ambos lados (según oferta/pedido)
+      S-->>P2: transfer ambos lados (según oferta/pedido)
     else reject
-      S-->>P1: outcome(10,10)
-      S-->>P2: outcome(10,10)
+      S-->>P1: sin cambios
+      S-->>P2: sin cambios
     else snatch
+      S-->>P2: transferir solo lo ofrecido a P2
       opt G4 denuncia
         P1->>S: report: yes or no
         alt report=yes
-          S->>AJ: aplicar sancion
-          AJ-->>S: confiscar tokens P2
-          S-->>P1: outcome(10,0)
-          S-->>P2: outcome(10,0)
+          S->>AJ: aplicar sanción
+          AJ-->>S: confiscar oferta a P2 y revertir a P1
         else report=no
-          S-->>P1: outcome(5,20)
-          S-->>P2: outcome(5,20)
+          Note over P1,P2: Se mantiene el robo
         end
+      end
       opt G3 repudio
         P1->>S: shameToken: assign yes or no
-        S-->>P2: actualizar contador verguenza (proxima partida)
+        S-->>P2: actualizar contador vergüenza (próxima partida)
       end
     end
   end
 
-  opt Round3 - persistir resultado R3
-    S->>S: actualizar leaderboard y analytics
-  end
   S-->>P1: endRound
   S-->>P2: endRound
 ```
 
 ## Variantes de juego
 
-### G1 – Sin derechos de propiedad
+### G1 – Sin derechos de propiedad (oferta variable)
 ```mermaid
 %% g1-no-property.mmd
 flowchart TD
-  A1[P1: Ofrecer 5?] -->|No ofrecer| O1[10,10]
+  A1[P1: Proponer oferta? (pavos/elotes + pedido)] -->|No ofrecer| O1[Sin cambios]
   A1 -->|Ofrecer| B1[P2: Aceptar / Rechazar / Robar]
-  B1 -->|Aceptar| O2[15,15]
-  B1 -->|Rechazar| O3[10,10]
-  B1 -->|Robar| O4[5,20]
+  B1 -->|Aceptar| O2[Intercambiar según oferta/pedido]
+  B1 -->|Rechazar| O3[Sin cambios]
+  B1 -->|Robar| O4[Transferir solo lo ofrecido a P2]
 ```
 
-### G2 – Regla contraproductiva (P2 puede forzar)
+### G2 – Regla contraproductiva (P2 puede forzar) – oferta variable
 ```mermaid
 %% g2-counterproductive-rule.mmd
 flowchart TD
-  A2[P2: Forzar?] -->|Sí| F2[P1: Oferta forzada]
-  A2 -->|No| B2[P1: Ofrecer 5?]
+  A2[P2: Forzar?] -->|Sí| F2[P1: Debe proponer oferta]
+  A2 -->|No| B2[P1: Proponer oferta?]
   F2 --> C2[P2: Acción final]
-  B2 -->|No ofrecer| O1[10,10]
+  B2 -->|No ofrecer| O1[Sin cambios]
   B2 -->|Ofrecer| C2[P2: Aceptar / Rechazar / Robar]
-  C2 -->|Aceptar| O2[15,15]
-  C2 -->|Rechazar| O3[10,10]
-  C2 -->|Robar| O4[5,20]
+  C2 -->|Aceptar| O2[Intercambiar según oferta/pedido]
+  C2 -->|Rechazar| O3[Sin cambios]
+  C2 -->|Robar| O4[Transferir solo lo ofrecido a P2]
 ```
 
-### G3 – Token de repudio (vergüenza)
+### G3 – Token de repudio (vergüenza) – oferta variable
 ```mermaid
 %% g3-shame-token.mmd
 flowchart TD
-  A3[P1: Ofrecer 5?] -->|No ofrecer| O1[10,10]
+  A3[P1: Proponer oferta?] -->|No ofrecer| O1[Sin cambios]
   A3 -->|Ofrecer| B3[P2: Aceptar / Rechazar / Robar]
-  B3 -->|Aceptar| O2[15,15]
-  B3 -->|Rechazar| O3[10,10]
-  B3 -->|Robar| C3[P1: Asignar ficha de verguenza?]
-  C3 -->|Sí| O4a[5,20 +1 verguenza proxima partida]
-  C3 -->|No| O4b[5,20]
+  B3 -->|Aceptar| O2[Intercambiar según oferta/pedido]
+  B3 -->|Rechazar| O3[Sin cambios]
+  B3 -->|Robar| C3[P1: Asignar ficha de vergüenza?]
+  C3 -->|Sí| O4a[+1 vergüenza para P2]
+  C3 -->|No| O4b[Sin vergüenza]
 ```
 
-### G4 – Derechos mínimos de propiedad (juez)
+### G4 – Derechos mínimos de propiedad (juez) – oferta variable
 ```mermaid
 %% g4-min-property-rights.mmd
 flowchart TD
-  A4[P1: Ofrecer 5?] -->|No ofrecer| O1[10,10]
+  A4[P1: Proponer oferta?] -->|No ofrecer| O1[Sin cambios]
   A4 -->|Ofrecer| B4[P2: Aceptar / Rechazar / Robar]
-  B4 -->|Aceptar| O2[15,15]
-  B4 -->|Rechazar| O3[10,10]
+  B4 -->|Aceptar| O2[Intercambiar según oferta/pedido]
+  B4 -->|Rechazar| O3[Sin cambios]
   B4 -->|Robar| C4[P1: ¿Denunciar?]
-  C4 -->|No| O4[5,20]
-  C4 -->|Sí| J4[Juez confisca tokens P2]
-  J4 --> O5[10,0]
+  C4 -->|No| O4[Transferir solo lo ofrecido a P2]
+  C4 -->|Sí| J4[AutoJudge revierte robo (confisca oferta a P2)]
+  J4 --> O5[Restituir oferta a P1]
 ```
 
-### G5 – Cheap talk (conversación previa)
+### G5 – Cheap talk (conversación previa) – oferta variable
 ```mermaid
 %% g5-cheap-talk.mmd
 flowchart TD
-  Pre[Chat previo 1 min - no vinculante] --> A5[P1: Ofrecer 5?]
-  A5 -->|No ofrecer| O1[10,10]
+  Pre[Chat previo 1 min - no vinculante] --> A5[P1: Proponer oferta?]
+  A5 -->|No ofrecer| O1[Sin cambios]
   A5 -->|Ofrecer| B5[P2: Aceptar / Rechazar / Robar]
-  B5 -->|Aceptar| O2[15,15]
-  B5 -->|Rechazar| O3[10,10]
-  B5 -->|Robar| O4[5,20]
+  B5 -->|Aceptar| O2[Intercambiar según oferta/pedido]
+  B5 -->|Rechazar| O3[Sin cambios]
+  B5 -->|Robar| O4[Transferir solo lo ofrecido a P2]
 ```
 
 ## Emparejamiento en masa (fase Gx)

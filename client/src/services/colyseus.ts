@@ -145,6 +145,55 @@ class ColyseusService {
     }
   }
 
+  // Demo game helpers
+  setVariant(variant: string): void {
+    if (this.gameRoom.value) {
+      this.gameRoom.value.send("setVariant", variant);
+    }
+  }
+
+  p2Force(force: boolean): void {
+    if (this.gameRoom.value) {
+      this.gameRoom.value.send("p2Force", force);
+    }
+  }
+
+  p1Action(action: 'offer' | 'no_offer' | 'forced_offer'): void {
+    if (this.gameRoom.value) {
+      this.gameRoom.value.send("p1Action", action);
+    }
+  }
+
+  p2Action(action: 'accept' | 'reject' | 'snatch'): void {
+    if (this.gameRoom.value) {
+      this.gameRoom.value.send("p2Action", action);
+    }
+  }
+
+  report(report: boolean): void {
+    if (this.gameRoom.value) {
+      this.gameRoom.value.send("report", report);
+    }
+  }
+
+  assignShame(assign: boolean): void {
+    if (this.gameRoom.value) {
+      this.gameRoom.value.send("assignShame", assign);
+    }
+  }
+
+  proposeOffer(offerPavo: number, offerElote: number, requestPavo: number, requestElote: number): void {
+    if (this.gameRoom.value) {
+      this.gameRoom.value.send("proposeOffer", { offerPavo, offerElote, requestPavo, requestElote });
+    }
+  }
+
+  noOffer(): void {
+    if (this.gameRoom.value) {
+      this.gameRoom.value.send("noOffer");
+    }
+  }
+
   leaveLobby(): void {
     console.log('leaveLobby called');
     if (this.lobbyRoom.value) {

@@ -23,7 +23,7 @@
 
       <div class="main-actions">
         <button @click="handleQuickPlay" class="btn btn-primary btn-large" :disabled="isJoining">
-          <span v-if="!isJoining">⚡ Quick Play</span>
+          <span v-if="!isJoining">🧪 Demo Play</span>
           <span v-else>Finding match...</span>
         </button>
       </div>
@@ -156,8 +156,8 @@ async function handleQuickPlay() {
       colyseusService.lobbyRoom.value = null;
     }
     
-    console.log('Navigating to /game...');
-    await router.push('/game');
+    console.log('Navigating to /demo...');
+    await router.push('/demo');
     console.log('Navigation complete');
   } catch (error) {
     console.error('Failed to join game:', error);
