@@ -2,7 +2,7 @@
   <div class="g">
     <h3>G1 – Sin derechos de propiedad</h3>
     <OfferControls v-if="myRole==='P1' && !state.offer?.active" @propose="onPropose" @no-offer="onNoOffer"/>
-    <div v-if="state.offer?.active" class="controls">
+    <div v-if="state.offer?.active && !state.p2Action" class="controls">
       <div class="offer-view">Oferta: 🦃 {{ state.offer.offerPavo }} / 🌽 {{ state.offer.offerElote }} | Pedido: 🦃 {{ state.offer.requestPavo }} / 🌽 {{ state.offer.requestElote }}</div>
       <div v-if="myRole === 'P2'">
         <button class="btn" @click="$emit('p2Action', 'accept')">P2: Aceptar</button>

@@ -5,8 +5,8 @@
       <label><input type="checkbox" :checked="state.forcedByP2" @change="$emit('p2Force', ($event.target as HTMLInputElement).checked)"/> Forzar oferta</label>
     </div>
     <OfferControls v-if="myRole==='P1' && !state.offer?.active" :disable-no-offer="state.forcedByP2" @propose="onPropose" @no-offer="onNoOffer"/>
-    <div v-if="state.offer?.active" class="note">Oferta activa</div>
-    <div v-if="state.offer?.active" class="controls">
+    <div v-if="state.offer?.active && !state.p2Action" class="controls">
+      <div class="offer-view">Oferta: 🦃 {{ state.offer.offerPavo }} / 🌽 {{ state.offer.offerElote }} | Pedido: 🦃 {{ state.offer.requestPavo }} / 🌽 {{ state.offer.requestElote }}</div>
       <div v-if="myRole === 'P2'">
         <button class="btn" @click="$emit('p2Action', 'accept')">P2: Aceptar</button>
         <button class="btn" @click="$emit('p2Action', 'reject')">P2: Rechazar</button>
@@ -35,6 +35,6 @@ function onNoOffer() {
 .g { background:#fff; padding:12px; border-radius:8px; }
 .controls { display:flex; gap:8px; margin:8px 0; }
 .btn { padding:8px 12px; border:none; border-radius:6px; background:#e3f2fd; color:#1565c0; cursor:pointer; }
-.note { color:#1565c0; font-weight:600; }
+.offer-view { font-size: 14px; color:#333; }
 .hint { color:#666; }
 </style>

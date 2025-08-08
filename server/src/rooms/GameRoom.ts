@@ -85,6 +85,10 @@ export class GameRoom extends Room<GameState> {
       const player = this.state.players.get(client.sessionId);
       if (!player) return;
       if (player.role !== "P2") return;
+      
+      // Prevent multiple actions on the same offer
+      if (this.state.p2Action) return;
+      
       this.state.p2Action = action; // accept | reject | snatch
       this.resolveP2Action();
       

@@ -6,7 +6,8 @@
       <button class="btn" @click="send">Enviar</button>
     </div>
     <OfferControls v-if="myRole==='P1' && !state.offer?.active" @propose="onPropose" @no-offer="onNoOffer"/>
-    <div v-if="state.offer?.active" class="controls">
+    <div v-if="state.offer?.active && !state.p2Action" class="controls">
+      <div class="offer-view">Oferta: 🦃 {{ state.offer.offerPavo }} / 🌽 {{ state.offer.offerElote }} | Pedido: 🦃 {{ state.offer.requestPavo }} / 🌽 {{ state.offer.requestElote }}</div>
       <div v-if="myRole === 'P2'">
         <button class="btn" @click="$emit('p2Action', 'accept')">P2: Aceptar</button>
         <button class="btn" @click="$emit('p2Action', 'reject')">P2: Rechazar</button>
@@ -46,5 +47,6 @@ function onNoOffer() {
 .chat { display:flex; gap:8px; margin:8px 0; }
 .chat input { flex:1; padding:8px; border-radius:6px; border:1px solid #ddd; }
 .btn { padding:8px 12px; border:none; border-radius:6px; background:#e3f2fd; color:#1565c0; cursor:pointer; }
+.offer-view { font-size: 14px; color:#333; }
 .hint { color:#666; }
 </style>
