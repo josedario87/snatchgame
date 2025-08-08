@@ -17,6 +17,10 @@ export class GameRoom extends Room<GameState> {
       // Reset to round 1 and clear decisions when variant changes
       this.state.currentRound = 1;
       this.state.resetRound();
+      // Reset game status if it was finished
+      if (this.state.gameStatus === GameStatus.FINISHED) {
+        this.state.gameStatus = GameStatus.PLAYING;
+      }
       // G2: Force offer by default
       if (variant === 'G2') {
         this.state.forcedByP2 = true;
