@@ -1,6 +1,22 @@
 flowchart TD
-  A1[P1: Proponer oferta? (pavos/elotes + pedido)] -->|No ofrecer| O1[Sin cambios]
-  A1 -->|Ofrecer| B1[P2: Aceptar / Rechazar / Robar]
-  B1 -->|Aceptar| O2[Intercambiar según oferta/pedido]
-  B1 -->|Rechazar| O3[Sin cambios]
-  B1 -->|Robar| O4[Transferir solo lo ofrecido a P2]
+  Start[G1: Sin derechos de propiedad] --> Init[P1: 10 pavos<br/>P2: 10 elotes]
+  Init --> A1{P1: Ofrecer tokens?}
+  A1 -->|No ofrecer| O1[Sin cambios<br/>→ Siguiente ronda]
+  A1 -->|Proponer oferta| B1[P1 especifica:<br/>- Ofrecer: X pavos, Y elotes<br/>- Pedir: A pavos, B elotes]
+  B1 --> C1[UI: Ocultar OfferControls<br/>Mostrar oferta a ambos jugadores]
+  C1 --> D1{P2: Una sola decisión}
+  D1 -->|Aceptar| O2[Intercambiar tokens:<br/>P1 da oferta, recibe pedido<br/>P2 da pedido, recibe oferta<br/>→ Auto-avance]
+  D1 -->|Rechazar| O3[Sin cambios en tokens<br/>→ Auto-avance]
+  D1 -->|Robar| O4[P2 recibe oferta<br/>P1 pierde oferta<br/>Sin pago de P2<br/>→ Auto-avance]
+  
+  %%{init: {'theme':'dark'}}%%
+  style Start fill:#1a237e,stroke:#fff,color:#fff
+  style Init fill:#283593,stroke:#fff,color:#fff
+  style A1 fill:#4527a0,stroke:#fff,color:#fff
+  style B1 fill:#512da8,stroke:#fff,color:#fff
+  style C1 fill:#37474f,stroke:#fff,color:#fff
+  style D1 fill:#455a64,stroke:#fff,color:#fff
+  style O1 fill:#424242,stroke:#fff,color:#fff
+  style O2 fill:#2e7d32,stroke:#fff,color:#fff
+  style O3 fill:#757575,stroke:#fff,color:#fff
+  style O4 fill:#d32f2f,stroke:#fff,color:#fff

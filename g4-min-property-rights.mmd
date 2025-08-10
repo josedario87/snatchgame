@@ -1,9 +1,38 @@
 flowchart TD
-  A4[P1: Proponer oferta?] -->|No ofrecer| O1[Sin cambios]
-  A4 -->|Ofrecer| B4[P2: Aceptar / Rechazar / Robar]
-  B4 -->|Aceptar| O2[Intercambiar según oferta/pedido]
-  B4 -->|Rechazar| O3[Sin cambios]
-  B4 -->|Robar| C4[P1: ¿Denunciar?]
-  C4 -->|No| O4[Transferir solo lo ofrecido a P2]
-  C4 -->|Sí| J4[AutoJudge revierte robo (confisca oferta a P2)]
-  J4 --> O5[Restituir oferta a P1]
+  Start[G4: Derechos mínimos de propiedad] --> Init[P1: 10 pavos<br/>P2: 10 elotes]
+  Init --> A4{P1: Ofrecer tokens?}
+  A4 -->|No ofrecer| O1[Sin cambios<br/>→ Siguiente ronda]
+  A4 -->|Proponer oferta| B4[P1 especifica:<br/>- Ofrecer: X pavos, Y elotes<br/>- Pedir: A pavos, B elotes]
+  
+  B4 --> C4[UI: Ocultar OfferControls<br/>Mostrar detalles oferta]
+  C4 --> D4{P2: Una sola decisión}
+  
+  D4 -->|Aceptar| O2[Intercambiar tokens<br/>→ Auto-avance]
+  D4 -->|Rechazar| O3[Sin cambios<br/>→ Auto-avance]
+  D4 -->|Robar| E4[P2 recibe oferta sin pagar<br/>UI: Ocultar botones P2]
+  
+  E4 --> F4{P1: ¿Denunciar al juez?}
+  F4 -->|No denunciar| O4[Robo exitoso<br/>→ Auto-avance]
+  F4 -->|Denunciar| J4[⚖️ AutoJudge actúa]
+  
+  J4 --> S1[Paso 1 - Revertir robo:<br/>Devolver tokens ofrecidos a P1]
+  S1 --> S2[Paso 2 - Sanción inversa:<br/>P1 recibe lo pedido sin dar nada<br/>P2 pierde lo pedido]
+  S2 --> O5[Sanción aplicada<br/>→ Auto-avance]
+  
+  %%{init: {'theme':'dark'}}%%
+  style Start fill:#b71c1c,stroke:#fff,color:#fff
+  style Init fill:#c62828,stroke:#fff,color:#fff
+  style A4 fill:#4527a0,stroke:#fff,color:#fff
+  style B4 fill:#512da8,stroke:#fff,color:#fff
+  style C4 fill:#37474f,stroke:#fff,color:#fff
+  style D4 fill:#455a64,stroke:#fff,color:#fff
+  style E4 fill:#d32f2f,stroke:#fff,color:#fff
+  style F4 fill:#e53935,stroke:#fff,color:#fff
+  style J4 fill:#1b5e20,stroke:#fff,color:#fff
+  style S1 fill:#2e7d32,stroke:#fff,color:#fff
+  style S2 fill:#388e3c,stroke:#fff,color:#fff
+  style O1 fill:#424242,stroke:#fff,color:#fff
+  style O2 fill:#2e7d32,stroke:#fff,color:#fff
+  style O3 fill:#757575,stroke:#fff,color:#fff
+  style O4 fill:#bf360c,stroke:#fff,color:#fff
+  style O5 fill:#43a047,stroke:#fff,color:#fff

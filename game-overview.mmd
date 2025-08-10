@@ -1,9 +1,68 @@
 flowchart TD
-  A[Emparejar jugadores al azar] --> B[Asignar roles P1/P2]
-  B --> C[Seleccionar variante G1..G5]
-  C --> D[Iniciar partida de 3 rondas]
-  D --> R1[Ronda 1] --> R2[Ronda 2] --> R3[Ronda 3]
-  R3 --> E[Registrar SOLO resultado de R3]
-  E --> F[Actualizar leaderboard/analytics]
-  F --> G[Reemparejar y posible cambio de roles]
+  A[Demo Play] --> B[Asignar roles P1/P2]
+  B --> C{Jugadores pueden cambiar variante}
+  C --> |G1| G1[Sin derechos de propiedad]
+  C --> |G2| G2[Regla contraproductiva]
+  C --> |G3| G3[Token de repudio]
+  C --> |G4| G4[Derechos mínimos]
+  C --> |G5| G5[Cheap talk]
+  
+  G1 --> D[P1: 10 pavos, P2: 10 elotes]
+  G2 --> D
+  G3 --> D
+  G4 --> D
+  G5 --> D
+  
+  D --> E[Iniciar ronda]
+  E --> F{P1 ofrece?<br/>❗G2: Si P2 fuerza, DEBE ofrecer}
+  F -->|Sí| G[P1 propone oferta variable]
+  F -->|No| H[No ofrecer → siguiente ronda]
+  
+  G --> I{P2 decide}
+  I -->|Aceptar| J[Intercambiar tokens]
+  I -->|Rechazar| K[Sin cambios]
+  I -->|Robar| L[P2 toma oferta sin pagar]
+  
+  J --> M[Auto-avance a siguiente ronda]
+  K --> M
+  L --> N{Variante especial?}
+  N -->|G3| O[P1: ¿Asignar vergüenza?]
+  N -->|G4| P[P1: ¿Denunciar?]
+  N -->|Otros| M
+  
+  O --> M
+  P --> Q[Sanción: P1 recibe pedido sin dar oferta]
+  Q --> M
+  
+  M --> R{Ronda < 3?}
+  R -->|Sí| E
+  R -->|No| S[Fin del juego → Status: FINISHED]
+  S --> T[Cambiar variante reinicia todo]
+  
+  %%{init: {'theme':'dark'}}%%
+  style A fill:#1a1a2e,stroke:#fff,color:#fff
+  style B fill:#16213e,stroke:#fff,color:#fff
+  style C fill:#0f3460,stroke:#fff,color:#fff
+  style D fill:#1e3a5f,stroke:#fff,color:#fff
+  style E fill:#2d4059,stroke:#fff,color:#fff
+  style F fill:#533e85,stroke:#fff,color:#fff
+  style G fill:#2e7d32,stroke:#fff,color:#fff
+  style G1 fill:#304ffe,stroke:#fff,color:#fff
+  style G2 fill:#6a1b9a,stroke:#fff,color:#fff
+  style G3 fill:#e65100,stroke:#fff,color:#fff
+  style G4 fill:#b71c1c,stroke:#fff,color:#fff
+  style G5 fill:#004d40,stroke:#fff,color:#fff
+  style H fill:#424242,stroke:#fff,color:#fff
+  style I fill:#1a237e,stroke:#fff,color:#fff
+  style J fill:#2e7d32,stroke:#fff,color:#fff
+  style K fill:#757575,stroke:#fff,color:#fff
+  style L fill:#d32f2f,stroke:#fff,color:#fff
+  style M fill:#37474f,stroke:#fff,color:#fff
+  style N fill:#4527a0,stroke:#fff,color:#fff
+  style O fill:#ff6f00,stroke:#fff,color:#fff
+  style P fill:#c62828,stroke:#fff,color:#fff
+  style Q fill:#b71c1c,stroke:#fff,color:#fff
+  style R fill:#455a64,stroke:#fff,color:#fff
+  style S fill:#212121,stroke:#fff,color:#fff
+  style T fill:#263238,stroke:#fff,color:#fff
 

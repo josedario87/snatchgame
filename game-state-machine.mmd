@@ -1,20 +1,70 @@
 stateDiagram-v2
-  [*] --> Lobby
-  Lobby --> Matching : join/ready
-  Matching --> Setup : asignar roles + variante
-  Setup --> PreChat : si G5 (cheap talk)
-  Setup --> Round1 : si no G5
-  PreChat --> Round1 : fin ventana chat (1 min)
-  Round1 --> Round2 : resultado cerrado
-  Round2 --> Round3 : resultado cerrado
-  Round3 --> PostGame : resultado cerrado
-  PostGame --> Commit : registrar solo R3
-  Commit --> Rematch : liberar jugadores
-  Rematch --> [*]
-
-  note right of Round1
-    Las decisiones pueden ser:
-    - Secuenciales (G1,G2,G3,G4,G5)
-    - Simultáneas (si en el futuro aplica)
+  [*] --> DemoPlay
+  
+  DemoPlay --> Waiting : quickPlay()
+  Waiting --> Playing : 2 jugadores conectados
+  
+  state Playing {
+    [*] --> VariantSelection
+    VariantSelection --> RoundActive : seleccionar G1-G5
+    
+    state RoundActive {
+      [*] --> OfferPhase
+      
+      state OfferPhase {
+        [*] --> CheckForce
+        CheckForce --> ForcedOffer : G2 && forcedByP2
+        CheckForce --> OptionalOffer : !forcedByP2
+        ForcedOffer --> ProposeOffer : debe ofrecer
+        OptionalOffer --> ProposeOffer : ofrecer
+        OptionalOffer --> NoOffer : no ofrecer
+      }
+      
+      ProposeOffer --> P2Decision : offerActive=true
+      NoOffer --> NextRound : auto-avance
+      
+      state P2Decision {
+        [*] --> WaitingP2
+        WaitingP2 --> Accept : p2Action
+        WaitingP2 --> Reject : p2Action
+        WaitingP2 --> Snatch : p2Action
+      }
+      
+      Accept --> TokenExchange : intercambiar
+      Reject --> NoChange : sin cambios
+      Snatch --> CheckVariant : robar tokens
+      
+      TokenExchange --> NextRound : auto-avance
+      NoChange --> NextRound : auto-avance
+      
+      state CheckVariant {
+        [*] --> CheckG3G4
+        CheckG3G4 --> ShameDecision : G3
+        CheckG3G4 --> ReportDecision : G4
+        CheckG3G4 --> NextRound : otros
+      }
+      
+      ShameDecision --> NextRound : asignar/no asignar
+      ReportDecision --> Sanction : denunciar
+      ReportDecision --> NextRound : no denunciar
+      Sanction --> NextRound : aplicar sanción inversa
+    }
+    
+    NextRound --> RoundActive : round < 3
+    NextRound --> Finished : round = 3
+  }
+  
+  Finished --> VariantSelection : cambiar variante reinicia
+  Playing --> Finished : 3 rondas completadas
+  
+  note right of VariantSelection
+    Cualquier jugador puede
+    cambiar variante en
+    cualquier momento
+  end note
+  
+  note right of P2Decision
+    Una sola acción
+    permitida por oferta
   end note
 

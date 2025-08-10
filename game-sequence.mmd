@@ -1,55 +1,75 @@
 sequenceDiagram
-  participant P1 as Player 1
-  participant P2 as Player 2
+  participant P1 as Player 1 (10 pavos)
+  participant P2 as Player 2 (10 elotes)
   participant S as Server/Room
-  participant AJ as AutoJudge G4
+  participant UI as UI Components
 
-  S->>P1: startRound(gameType, roundNo, role=P1)
-  S->>P2: startRound(gameType, roundNo, role=P2)
+  Note over P1,P2: Inicio de Demo Play
+  S->>P1: Asignar rol P1, tokens iniciales
+  S->>P2: Asignar rol P2, tokens iniciales
+  
+  Note over UI: Jugadores pueden cambiar variante en cualquier momento
+  P1->>S: setVariant(G1-G5)
+  S->>S: resetRound(), currentRound=1, status=PLAYING
+  S-->>P1: broadcast variantChanged
+  S-->>P2: broadcast variantChanged
 
-  alt G2 (P2 decide forzar)
-    P2->>S: decide(force or no_force)
-    S-->>P1: forcedOffer = true/false
-  else Otros juegos
-    Note over P1,P2: Sin decision previa de P2
-  end
+  loop Cada Ronda (1-3)
+    alt G2 - Regla contraproductiva
+      Note over P2: Checkbox "Forzar oferta" (activo por defecto)
+      P2->>S: p2Force(true/false)
+      S-->>UI: forcedByP2 = true/false
+      Note over P1: Si forzado, botón "No ofrecer" deshabilitado
+    end
 
-  P1->>S: actionP1(offer or no_offer) - o forzado en G2
-  S-->>P2: notifyP1Action(offer or no_offer)
+    alt G5 - Cheap talk
+      Note over P1,P2: Chat no vinculante por 1 minuto
+    end
 
-  alt no_offer
-    S-->>P1: outcome(10,10)
-    S-->>P2: outcome(10,10)
-  else offer
-    P2->>S: actionP2(accept / reject / snatch)
-    alt accept
-      S-->>P1: outcome(15,15)
-      S-->>P2: outcome(15,15)
-    else reject
-      S-->>P1: outcome(10,10)
-      S-->>P2: outcome(10,10)
-    else snatch
-      opt G4 denuncia
-        P1->>S: report: yes or no
-        alt report=yes
-          S->>AJ: aplicar sancion
-          AJ-->>S: confiscar tokens P2
-          S-->>P1: outcome(10,0)
-          S-->>P2: outcome(10,0)
-        else report=no
-          S-->>P1: outcome(5,20)
-          S-->>P2: outcome(5,20)
+    alt P1 decide ofrecer
+      P1->>S: proposeOffer({offerPavo, offerElote, requestPavo, requestElote})
+      S->>S: Validar tokens disponibles
+      S-->>UI: offerActive = true, ocultar OfferControls
+      S-->>P2: Mostrar oferta y botones de decisión
+      
+      P2->>S: p2Action(accept/reject/snatch)
+      S->>S: Prevenir múltiples acciones (if p2Action exists, return)
+      
+      alt accept
+        S->>S: Intercambiar tokens ambos lados
+        S->>S: Auto-avanzar ronda
+      else reject  
+        S->>S: Sin cambios en tokens
+        S->>S: Auto-avanzar ronda
+      else snatch
+        S->>S: P2 recibe oferta sin pagar
+        
+        alt G3 - Token de vergüenza
+          S-->>UI: Mostrar botones vergüenza a P1
+          P1->>S: assignShame(true/false)
+          alt true
+            S->>P2: shameTokens += 1
+          end
+          S->>S: Auto-avanzar ronda
+        else G4 - Derechos mínimos
+          S-->>UI: Mostrar botones denuncia a P1
+          P1->>S: report(true/false)
+          alt true
+            S->>S: Revertir robo
+            S->>S: P1 recibe pedido sin dar oferta (sanción inversa)
+          end
+          S->>S: Auto-avanzar ronda
+        else Otros
+          S->>S: Auto-avanzar ronda
         end
-      opt G3 repudio
-        P1->>S: shameToken: assign yes or no
-        S-->>P2: actualizar contador verguenza (proxima partida)
-        end
+      end
+    else P1 no ofrece
+      P1->>S: noOffer()
+      S->>S: p1Action = "no_offer"
+      S->>S: Auto-avanzar ronda
     end
   end
 
-  opt Round3 - persistir resultado R3
-    S->>S: actualizar leaderboard y analytics
-  end
-  S-->>P1: endRound
-  S-->>P2: endRound
-  end
+  Note over S: Después de ronda 3
+  S->>S: gameStatus = FINISHED
+  Note over UI: Al cambiar variante, reinicia todo

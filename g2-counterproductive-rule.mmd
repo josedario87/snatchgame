@@ -1,9 +1,30 @@
 flowchart TD
-  A2[P2: Forzar?] -->|Sí| F2[P1: Debe proponer oferta]
-  A2 -->|No| B2[P1: Proponer oferta?]
-  F2 --> C2[P2: Acción final]
-  B2 -->|No ofrecer| O1[Sin cambios]
-  B2 -->|Ofrecer| C2[P2: Aceptar / Rechazar / Robar]
-  C2 -->|Aceptar| O2[Intercambiar según oferta/pedido]
-  C2 -->|Rechazar| O3[Sin cambios]
-  C2 -->|Robar| O4[Transferir solo lo ofrecido a P2]
+  Start[G2: Regla contraproductiva] --> Init[P1: 10 pavos<br/>P2: 10 elotes]
+  Init --> A2[P2: Checkbox 'Forzar oferta'<br/>🔲 Activo por defecto]
+  A2 -->|forcedByP2 = true| F2[P1 DEBE ofrecer<br/>Botón 'No ofrecer' deshabilitado]
+  A2 -->|forcedByP2 = false| B2{P1: Ofrecer tokens?}
+  
+  F2 --> C2[P1 especifica oferta obligatoria:<br/>- Ofrecer: X pavos, Y elotes<br/>- Pedir: A pavos, B elotes]
+  B2 -->|No ofrecer| O1[Sin cambios<br/>→ Siguiente ronda]
+  B2 -->|Proponer oferta| C2
+  
+  C2 --> D2[UI: Ocultar OfferControls<br/>Mostrar detalles oferta]
+  D2 --> E2{P2: Una sola decisión}
+  
+  E2 -->|Aceptar| O2[Intercambiar tokens<br/>→ Auto-avance]
+  E2 -->|Rechazar| O3[Sin cambios<br/>→ Auto-avance]
+  E2 -->|Robar| O4[P2 recibe oferta sin pagar<br/>→ Auto-avance]
+  
+  %%{init: {'theme':'dark'}}%%
+  style Start fill:#6a1b9a,stroke:#fff,color:#fff
+  style Init fill:#7b1fa2,stroke:#fff,color:#fff
+  style A2 fill:#8e24aa,stroke:#fff,color:#fff
+  style F2 fill:#ab47bc,stroke:#fff,color:#fff
+  style B2 fill:#4527a0,stroke:#fff,color:#fff
+  style C2 fill:#512da8,stroke:#fff,color:#fff
+  style D2 fill:#37474f,stroke:#fff,color:#fff
+  style E2 fill:#455a64,stroke:#fff,color:#fff
+  style O1 fill:#424242,stroke:#fff,color:#fff
+  style O2 fill:#2e7d32,stroke:#fff,color:#fff
+  style O3 fill:#757575,stroke:#fff,color:#fff
+  style O4 fill:#d32f2f,stroke:#fff,color:#fff
