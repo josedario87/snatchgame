@@ -128,6 +128,19 @@ export class GameRoom extends Room<GameState> {
       this.advanceRound();
     });
 
+    // Cheap talk / chat broadcast (non-binding)
+    this.onMessage("chat", (client, payload: { id?: string; text: string }) => {
+      const raw = (payload?.text ?? "").toString();
+      const text = raw.slice(0, 500); // basic guard
+      if (!text.trim()) return;
+      const player = this.state.players.get(client.sessionId);
+      const from = player?.name || "player";
+      const ts = Date.now();
+      const id = (payload as any)?.id || `${ts}-${client.sessionId}`;
+      // Broadcast to all (including sender) so both UIs render the same
+      this.broadcast("chat", { id, text, from, fromId: client.sessionId, ts });
+    });
+
     // G3 shame token after snatch
     this.onMessage("assignShame", (client, assign: boolean) => {
       const player = this.state.players.get(client.sessionId);

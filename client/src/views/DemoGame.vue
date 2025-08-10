@@ -55,6 +55,8 @@
         </div>
       </div>
 
+      <ChatWidget />
+
       <div class="game-footer">
         <button @click="leaveGame" class="btn btn-leave">Leave Game</button>
       </div>
@@ -73,6 +75,7 @@ import G2 from './games/G2.vue';
 import G3 from './games/G3.vue';
 import G4 from './games/G4.vue';
 import G5 from './games/G5.vue';
+import ChatWidget from './games/ChatWidget.vue';
 
 const router = useRouter();
 
