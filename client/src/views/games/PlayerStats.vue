@@ -7,26 +7,29 @@
     <div class="tokens">
       <div class="token pill">
         <span class="icon">🦃</span>
-        <span class="val">{{ player.pavoTokens ?? 0 }}</span>
+        <span class="val"><AnimatedNumber :value="player.pavoTokens ?? 0" /></span>
       </div>
       <div class="token pill">
         <span class="icon">🌽</span>
-        <span class="val">{{ player.eloteTokens ?? 0 }}</span>
+        <span class="val"><AnimatedNumber :value="player.eloteTokens ?? 0" /></span>
       </div>
-      <div v-if="(player.shameTokens ?? 0) > 0" class="token pill subtle">
-        <span class="icon">😶</span>
-        <span class="val">{{ player.shameTokens }}</span>
-      </div>
+      <Transition name="pop">
+        <div v-if="(player.shameTokens ?? 0) > 0" class="token pill subtle shame-pill">
+          <span class="icon">😶</span>
+          <span class="val"><AnimatedNumber :value="player.shameTokens ?? 0" :pulseOnFirst="true" /></span>
+        </div>
+      </Transition>
     </div>
     <div class="score">
       <span class="label">Puntuación</span>
-      <span class="value">{{ displayScore }}</span>
+      <span class="value"><AnimatedNumber :value="displayScore" /></span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import AnimatedNumber from './AnimatedNumber.vue';
 
 interface PlayerView {
   sessionId?: string;
@@ -58,8 +61,13 @@ const primary = computed(() => props.player.color || '#667eea');
 .pill { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; background:#f7f7f7; border:1px solid #eee; }
 .pill.subtle { background:#fafafa; color:#666; }
 .icon { font-size: 16px; }
-.val { font-weight: 600; color:#333; }
+.val { font-weight: 600; color:#333; display:inline-block; min-width: 1ch; }
 .score { display:flex; align-items:center; justify-content:space-between; margin-top:6px; padding:8px; border-radius:10px; background:linear-gradient(135deg, color-mix(in srgb, var(--primary) 10%, white) 0%, #ffffff 100%); border:1px solid color-mix(in srgb, var(--primary) 30%, #e6e9ff); }
 .score .label { font-size:12px; color: var(--primary); font-weight:700; }
-.score .value { font-size:18px; font-weight:800; color: var(--primary); }
+.score .value { font-size:18px; font-weight:800; color: var(--primary); display:flex; align-items:center; height: 1.2em; line-height: 1.2em; }
+
+/* Emphasis on shame token appear */
+.pop-enter-from { opacity: 0; transform: scale(0.9); }
+.pop-enter-to { opacity: 1; transform: scale(1); }
+.pop-enter-active { transition: all 0.2s ease; }
 </style>
