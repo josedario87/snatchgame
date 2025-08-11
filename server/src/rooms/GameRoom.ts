@@ -7,6 +7,17 @@ export class GameRoom extends Room<GameState> {
   maxClients = 2;
   private gameInterval?: NodeJS.Timeout;
 
+  private sysChat(text: string, kind: string) {
+    this.broadcast("chat", {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      text,
+      from: "Sistema",
+      fromId: "system",
+      ts: Date.now(),
+      kind,
+    } as any);
+  }
+
   onCreate(options: any) {
     this.setState(new GameState());
     this.state.roomId = this.roomId;
@@ -26,6 +37,7 @@ export class GameRoom extends Room<GameState> {
         this.state.forcedByP2 = true;
       }
       this.broadcast("variantChanged", { variant });
+      this.sysChat(`🔄 Variante cambiada a ${variant}`, 'variant_change');
     });
 
     // P1 proposes a variable offer (offer -> P2, request <- from P2)
@@ -56,6 +68,8 @@ export class GameRoom extends Room<GameState> {
       this.state.requestElote = rElote;
       this.state.offerActive = true; // Always set active when an offer is proposed
       this.state.p1Action = "offer";
+      // System chat with proposal summary
+      this.sysChat(`📨 P1 ofrece`, 'p1_propose');
     });
 
     // P1 decides to not offer
@@ -67,6 +81,8 @@ export class GameRoom extends Room<GameState> {
       
       this.state.resetRound();
       this.state.p1Action = "no_offer";
+      // System chat for no-offer
+      this.sysChat('⛔ P1 no ofrece', 'p1_no_offer');
       // Auto-advance to next round when P1 doesn't offer
       this.advanceRound();
     });
@@ -80,6 +96,8 @@ export class GameRoom extends Room<GameState> {
       // When forced, P1 must propose an offer; nothing automatic here.
     });
 
+    // System chat helper moved to class method this.sysChat
+
     // P2 action
     this.onMessage("p2Action", (client, action: string) => {
       const player = this.state.players.get(client.sessionId);
@@ -91,6 +109,11 @@ export class GameRoom extends Room<GameState> {
       
       this.state.p2Action = action; // accept | reject | snatch
       this.resolveP2Action();
+
+      // System chat feedback for both players
+      if (action === 'accept') this.sysChat('P2 aceptó', 'p2_accept');
+      else if (action === 'reject') this.sysChat('P2 rechazó la oferta', 'p2_reject');
+      else if (action === 'snatch') this.sysChat('👹 P2 robó', 'p2_snatch');
       
       // Auto-advance unless it's a snatch in G3 or G4 (need shame/report)
       if (action !== 'snatch' || (this.state.currentVariant !== 'G3' && this.state.currentVariant !== 'G4')) {
@@ -124,6 +147,9 @@ export class GameRoom extends Room<GameState> {
         // Clear offer now
         this.clearOffer();
       }
+      // System chat feedback
+      if (report) this.sysChat('⚖️ P1 denunció al juez y se confiscaron tokens', 'p1_report');
+      else this.sysChat('🤝 P1 decidió no denunciar al juez', 'p1_no_report');
       // Auto-advance after report decision
       this.advanceRound();
     });
@@ -135,10 +161,11 @@ export class GameRoom extends Room<GameState> {
       if (!text.trim()) return;
       const player = this.state.players.get(client.sessionId);
       const from = player?.name || "player";
+      const color = (player as any)?.color || "#667eea";
       const ts = Date.now();
       const id = (payload as any)?.id || `${ts}-${client.sessionId}`;
       // Broadcast to all (including sender) so both UIs render the same
-      this.broadcast("chat", { id, text, from, fromId: client.sessionId, ts });
+      this.broadcast("chat", { id, text, from, fromId: client.sessionId, ts, color });
     });
 
     // G3 shame token after snatch
@@ -152,6 +179,9 @@ export class GameRoom extends Room<GameState> {
         const p2 = this.state.p2Id ? this.state.players.get(this.state.p2Id) : undefined;
         if (p2) p2.shameTokens += 1;
       }
+      // System chat feedback
+      if (assign) this.sysChat('😶 P1 asignó un token de vergüenza a P2', 'p1_shame');
+      else this.sysChat('😌 P1 decidió no asignar vergüenza', 'p1_no_shame');
       // Auto-advance after shame decision
       this.advanceRound();
     });
@@ -249,6 +279,8 @@ export class GameRoom extends Room<GameState> {
       this.state.forcedByP2 = true;
     }
     this.broadcast("gameStart");
+    // System chat: start at round 1
+    this.sysChat(`▶️ Ronda ${this.state.currentRound}/3`, 'round_advance');
   }
 
   private pauseGame() {
@@ -380,6 +412,7 @@ export class GameRoom extends Room<GameState> {
       this.state.currentRound += 1;
       this.state.resetRound();
       this.broadcast("roundStarted", { round: this.state.currentRound });
+      this.sysChat(`▶️ Ronda ${this.state.currentRound}/3`, 'round_advance');
     } else {
       this.state.finishGame();
       this.endGame();

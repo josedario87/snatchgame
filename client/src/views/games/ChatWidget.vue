@@ -1,7 +1,13 @@
 <template>
   <div class="chat-widget">
-    <TransitionGroup name="ephem" tag="div" class="ephemeral-stack" v-if="ephemeralBubbles.length">
-      <div class="bubble" :class="{ fading: e.fading }" v-for="e in ephemeralBubbles" :key="e.id">{{ e.text }}</div>
+    <!-- System bubbles: top-left, newest on top -->
+    <TransitionGroup name="ephem" tag="div" class="ephemeral-stack-sys" v-if="ephemeralBubblesSys.length">
+      <div class="bubble" :class="[ e.kind ? `k-${e.kind}` : null, { fading: e.fading } ]" v-for="e in ephemeralBubblesSys" :key="e.id">{{ e.text }}</div>
+    </TransitionGroup>
+
+    <!-- Chat bubbles: bottom-right, newest at bottom -->
+    <TransitionGroup name="ephem" tag="div" class="ephemeral-stack-chat" v-if="ephemeralBubblesChat.length">
+      <div class="bubble chat" :class="{ fading: e.fading }" v-for="e in ephemeralBubblesChat" :key="e.id" :style="{ background: e.bg, color: e.fg }">{{ e.text }}</div>
     </TransitionGroup>
 
     <div class="composer" :class="{ 'is-focused': isComposerFocused }">
@@ -27,7 +33,7 @@
           <div
             v-for="m in messages"
             :key="m.id"
-            :class="['msg', m.mine ? 'mine' : 'theirs']"
+            :class="['msg', m.system ? 'system' : (m.mine ? 'mine' : 'theirs'), m.kind ? `k-${m.kind}` : null]"
           >
             <div class="meta">
               <span class="author">{{ m.mine ? 'Tú' : m.from }}</span>
@@ -61,6 +67,9 @@ interface ChatMsg {
   text: string;
   ts: number;
   mine: boolean;
+  kind?: string;
+  system?: boolean;
+  color?: string;
 }
 
 const text = ref("");
@@ -68,9 +77,11 @@ const isComposerFocused = ref(false);
 const messages = ref<ChatMsg[]>([]);
 const showModal = ref(false);
 const messagesEl = ref<HTMLDivElement | null>(null);
-const ephemeralBubbles = ref<{ id: string; text: string; expiresAt: number; fading?: boolean }[]>([]);
+const ephemeralBubblesSys = ref<{ id: string; text: string; expiresAt: number; fading?: boolean; kind?: string }[]>([]);
+const ephemeralBubblesChat = ref<{ id: string; text: string; expiresAt: number; fading?: boolean; bg?: string; fg?: string }[]>([]);
 
-const ephemeralTimers = new Map<string, { fade?: any; remove?: any }>();
+const ephemeralTimersSys = new Map<string, { fade?: any; remove?: any }>();
+const ephemeralTimersChat = new Map<string, { fade?: any; remove?: any }>();
 let removeHandler: (() => void) | null = null;
 const FADE_MS = 500; // start leave transition this long before removal
 
@@ -114,50 +125,93 @@ function handleIncoming(payload: any) {
     text: payload.text || "",
     ts: payload.ts || Date.now(),
     mine,
+    kind: payload.kind,
+    system: payload.fromId === 'system',
+    color: payload.color,
   };
   messages.value.push(msg);
   scrollToBottomSoon();
 
-  if (!mine) {
-    queueEphemeral(msg.id, msg.text);
+  if (!mine && msg.system) {
+    queueEphemeralSystem(msg.id, msg.text, msg.kind);
+  } else if (!mine && !msg.system) {
+    queueEphemeralChat(msg.id, msg.text, msg.color);
   }
 }
 
 function openModal() { showModal.value = true; }
 function closeModal() { showModal.value = false; }
 
-function queueEphemeral(id: string, t: string) {
-  // Compute duration based on words: min 3s, +0.5s per word up to 15s
+function queueEphemeralSystem(id: string, t: string, kind?: string) {
+  // System: top-left, longer duration (min 4s, 0.7s/word, max 20s)
   const words = (t || '').trim().split(/\s+/).filter(Boolean).length;
-  const computed = Math.min(15, Math.max(3, words * 0.5));
+  const computed = Math.min(20, Math.max(4, words * 0.7));
   const now = Date.now();
-  const upperMax = ephemeralBubbles.value.length
-    ? Math.max(...ephemeralBubbles.value.map(e => e.expiresAt))
-    : 0;
-  const expiresAt = Math.max(now + computed * 1000, upperMax || 0);
+  const expiresAt = now + computed * 1000;
 
-  const bubble = { id, text: t, expiresAt };
-  ephemeralBubbles.value.push(bubble);
+  const bubble = { id, text: t, expiresAt, kind };
+  ephemeralBubblesSys.value.unshift(bubble); // newest on top
 
-  // Schedule removal when its time comes
-  // Clear old timers if any
-  if (ephemeralTimers.has(id)) {
-    const t = ephemeralTimers.get(id)!;
+  if (ephemeralTimersSys.has(id)) {
+    const t = ephemeralTimersSys.get(id)!;
     if (t.fade) clearTimeout(t.fade);
     if (t.remove) clearTimeout(t.remove);
   }
   const delay = Math.max(0, expiresAt - now);
   const startDelay = Math.max(0, delay - FADE_MS);
   const fadeTimer = setTimeout(() => {
-    const b = ephemeralBubbles.value.find(e => e.id === id);
+    const b = ephemeralBubblesSys.value.find(e => e.id === id);
     if (b) b.fading = true;
   }, startDelay);
   const removeTimer = setTimeout(() => {
-    const idx = ephemeralBubbles.value.findIndex(e => e.id === id);
-    if (idx !== -1) ephemeralBubbles.value.splice(idx, 1);
-    ephemeralTimers.delete(id);
+    const idx = ephemeralBubblesSys.value.findIndex(e => e.id === id);
+    if (idx !== -1) ephemeralBubblesSys.value.splice(idx, 1);
+    ephemeralTimersSys.delete(id);
   }, delay);
-  ephemeralTimers.set(id, { fade: fadeTimer, remove: removeTimer });
+  ephemeralTimersSys.set(id, { fade: fadeTimer, remove: removeTimer });
+}
+
+function queueEphemeralChat(id: string, t: string, bg?: string) {
+  // Chat: bottom-right, slightly shorter (min 3s, 0.5s/word, max 15s)
+  const words = (t || '').trim().split(/\s+/).filter(Boolean).length;
+  const computed = Math.min(15, Math.max(3, words * 0.5));
+  const now = Date.now();
+  const expiresAt = now + computed * 1000;
+
+  const fg = getReadableTextColor(bg || '#667eea');
+  const bubble = { id, text: t, expiresAt, bg: bg || '#667eea', fg };
+  ephemeralBubblesChat.value.push(bubble); // newest at bottom
+
+  if (ephemeralTimersChat.has(id)) {
+    const t = ephemeralTimersChat.get(id)!;
+    if (t.fade) clearTimeout(t.fade);
+    if (t.remove) clearTimeout(t.remove);
+  }
+  const delay = Math.max(0, expiresAt - now);
+  const startDelay = Math.max(0, delay - FADE_MS);
+  const fadeTimer = setTimeout(() => {
+    const b = ephemeralBubblesChat.value.find(e => e.id === id);
+    if (b) b.fading = true;
+  }, startDelay);
+  const removeTimer = setTimeout(() => {
+    const idx = ephemeralBubblesChat.value.findIndex(e => e.id === id);
+    if (idx !== -1) ephemeralBubblesChat.value.splice(idx, 1);
+    ephemeralTimersChat.delete(id);
+  }, delay);
+  ephemeralTimersChat.set(id, { fade: fadeTimer, remove: removeTimer });
+}
+
+function getReadableTextColor(hex?: string): string {
+  const c = (hex || '').trim();
+  const m = c.match(/^#?([a-fA-F0-9]{6})$/);
+  let r=102, g=126, b=234; // fallback to #667eea
+  if (m) {
+    const int = parseInt(m[1], 16);
+    r = (int >> 16) & 255; g = (int >> 8) & 255; b = int & 255;
+  }
+  // Perceived brightness formula
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 140 ? '#111111' : '#ffffff';
 }
 
 function formatTime(ts: number) {
@@ -187,11 +241,16 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (removeHandler) removeHandler();
-  for (const [, obj] of ephemeralTimers) {
+  for (const [, obj] of ephemeralTimersSys) {
     if (obj.fade) clearTimeout(obj.fade);
     if (obj.remove) clearTimeout(obj.remove);
   }
-  ephemeralTimers.clear();
+  for (const [, obj] of ephemeralTimersChat) {
+    if (obj.fade) clearTimeout(obj.fade);
+    if (obj.remove) clearTimeout(obj.remove);
+  }
+  ephemeralTimersSys.clear();
+  ephemeralTimersChat.clear();
 });
 
 // Ensure modal autoscrolls when opened
@@ -213,11 +272,23 @@ watch(showModal, (v) => { if (v) scrollToBottomSoon(); });
 .btn.secondary { background:#f5f5f5; color:#333; }
 .btn.close { background:#f5f5f5; color:#333; }
 
-.ephemeral-stack { position:absolute; right: 0; bottom: 56px; display:flex; flex-direction: column; align-items:flex-end; gap:8px; pointer-events: none; width: clamp(220px, 50vw, 380px); }
+.ephemeral-stack-sys { position:fixed; left: 16px; top: 16px; display:flex; flex-direction: column; align-items:flex-start; gap:8px; pointer-events: none; width: clamp(220px, 50vw, 420px); z-index: 60; }
+.ephemeral-stack-chat { position:fixed; right: 16px; bottom: 70px; display:flex; flex-direction: column; align-items:flex-end; gap:8px; pointer-events: none; width: clamp(220px, 50vw, 420px); z-index: 60; }
 .bubble { max-width: 100%; background:#333; color:#fff; padding:8px 10px; border-radius:12px; box-shadow:0 8px 16px rgba(0,0,0,0.25); transition: opacity 0.5s ease; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+.bubble.k-p2_accept { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+.bubble.k-p2_reject { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+.bubble.k-p2_snatch { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+.bubble.k-p1_shame { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+.bubble.k-p1_no_shame { background: #6b7280; }
+.bubble.k-p1_report { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
+.bubble.k-p1_no_report { background: #6b7280; }
+.bubble.k-p1_no_offer { background: #6b7280; }
+.bubble.k-p1_propose { background: linear-gradient(135deg, #667eea 0%, #5a67d8 100%); }
+.bubble.k-variant_change { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.bubble.k-round_advance { background: linear-gradient(135deg, #2196f3 0%, #1e88e5 100%); }
 .bubble.fading { opacity: 0; }
 /* TransitionGroup animations for stacking upward smoothly and fading */
-.ephem-enter-from { opacity: 0; transform: translateY(10px); }
+.ephem-enter-from { opacity: 0; transform: translateY(-8px); }
 .ephem-enter-to { opacity: 1; transform: translateY(0); }
 .ephem-enter-active { transition: all 0.25s ease; }
 .ephem-leave-from { opacity: 1; transform: translateY(0); }
@@ -239,4 +310,16 @@ watch(showModal, (v) => { if (v) scrollToBottomSoon(); });
 .msg .body { white-space: pre-wrap; }
 .msg.mine { align-self: flex-end; background:#e3f2fd; }
 .msg.theirs { align-self: flex-start; background:#f5f5f5; }
+.msg.system { align-self: center; background:#fafafa; border:1px solid #eee; color:#333; }
+.msg.system.k-p2_accept { border-left: 4px solid #10b981; }
+.msg.system.k-p2_reject { border-left: 4px solid #f59e0b; }
+.msg.system.k-p2_snatch { border-left: 4px solid #ef4444; }
+.msg.system.k-p1_shame { border-left: 4px solid #f59e0b; }
+.msg.system.k-p1_no_shame { border-left: 4px solid #6b7280; }
+.msg.system.k-p1_report { border-left: 4px solid #7c3aed; }
+.msg.system.k-p1_no_report { border-left: 4px solid #6b7280; }
+.msg.system.k-p1_no_offer { border-left: 4px solid #6b7280; }
+.msg.system.k-p1_propose { border-left: 4px solid #667eea; }
+.msg.system.k-variant_change { border-left: 4px solid #764ba2; }
+.msg.system.k-round_advance { border-left: 4px solid #2196f3; }
 </style>
