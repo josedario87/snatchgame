@@ -4,12 +4,14 @@ export class LobbyPlayer extends Schema {
   @type("string") sessionId: string = "";
   @type("string") name: string = "";
   @type("boolean") inGame: boolean = false;
+  @type("string") color: string = "#667eea";
 
   constructor(sessionId: string, name: string) {
     super();
     this.sessionId = sessionId;
     this.name = name;
     this.inGame = false;
+    this.color = "#667eea";
   }
 }
 

@@ -29,6 +29,7 @@ class ColyseusService {
   public gameRoom: Ref<Room | null> = ref(null);
   public playerName: Ref<string> = ref("");
   public sessionId: Ref<string> = ref("");
+  public playerColor: Ref<string> = ref("#667eea");
 
   constructor() {
     const defaultHost = typeof window !== "undefined" ? window.location.hostname : "localhost";
@@ -52,10 +53,15 @@ class ColyseusService {
       room.onMessage("welcome", (data) => {
         this.sessionId.value = data.sessionId;
         this.playerName.value = data.assignedName;
+        if (data.color) this.playerColor.value = data.color;
       });
 
       room.onMessage("nameUpdated", (data) => {
         this.playerName.value = data.name;
+      });
+
+      room.onMessage("colorUpdated", (data) => {
+        if (data?.color) this.playerColor.value = data.color;
       });
 
       return room;
@@ -68,6 +74,12 @@ class ColyseusService {
   async setPlayerName(name: string): Promise<void> {
     if (this.lobbyRoom.value) {
       this.lobbyRoom.value.send("setName", name);
+    }
+  }
+
+  async setPlayerColor(color: string): Promise<void> {
+    if (this.lobbyRoom.value) {
+      this.lobbyRoom.value.send("setColor", color);
     }
   }
 
@@ -86,7 +98,8 @@ class ColyseusService {
           // Join the game room directly using the roomId
           console.log('Joining game room with name:', this.playerName.value);
           const gameRoom = await this.client.joinById(data.roomId, {
-            playerName: this.playerName.value
+            playerName: this.playerName.value,
+            playerColor: this.playerColor.value
           });
           
           // Ensure the room id is set
@@ -124,7 +137,8 @@ class ColyseusService {
   async joinGameRoom(roomId: string): Promise<Room> {
     try {
       const gameRoom = await this.client.joinById(roomId, {
-        playerName: this.playerName.value
+      playerName: this.playerName.value,
+      playerColor: this.playerColor.value
       });
       
       this.gameRoom.value = gameRoom;

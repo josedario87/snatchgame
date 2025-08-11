@@ -180,8 +180,14 @@ export class GameRoom extends Room<GameState> {
 
     // Use the playerName passed from the lobby - don't generate a new one!
     const playerName = options.playerName || "player";
+    const playerColor = (options.playerColor && typeof options.playerColor === 'string') ? options.playerColor : "#667eea";
     
     const player = this.state.addPlayer(client.sessionId, playerName);
+    // Persist selected color
+    const p = this.state.players.get(client.sessionId);
+    if (p) {
+      p.color = playerColor;
+    }
 
     client.send("playerInfo", {
       sessionId: client.sessionId,

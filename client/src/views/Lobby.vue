@@ -19,6 +19,13 @@
         <div class="current-name">
           Playing as: <span class="player-name">{{ playerName || 'guest' }}</span>
         </div>
+        <div class="color-picker">
+          <label class="color-label">Color:</label>
+          <input type="color" v-model="colorInput" @change="updateColor" class="color-input" />
+        </div>
+        <div class="preview">
+          <PlayerStats :player="previewPlayer" :highlight="true" />
+        </div>
       </div>
 
       <div class="main-actions">
@@ -72,6 +79,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
+import PlayerStats from './games/PlayerStats.vue';
 import { useRouter } from 'vue-router';
 import { colyseusService } from '../services/colyseus';
 import { getStateCallbacks } from 'colyseus.js';
@@ -79,15 +87,27 @@ import { getStateCallbacks } from 'colyseus.js';
 const router = useRouter();
 const inputName = ref('');
 const isJoining = ref(false);
+const colorInput = ref('#667eea');
 const availableRooms = ref<any[]>([]);
 const onlinePlayers = ref<any[]>([]);
 const totalPlayers = ref(0);
 
 const playerName = computed(() => colyseusService.playerName.value);
+const playerColor = computed(() => colyseusService.playerColor.value);
+const previewPlayer = computed(() => ({
+  sessionId: 'preview',
+  name: playerName.value || 'guest',
+  role: 'P1',
+  pavoTokens: 10,
+  eloteTokens: 0,
+  shameTokens: 0,
+  color: colorInput.value || playerColor.value
+}));
 
 onMounted(async () => {
   try {
     const room = await colyseusService.joinLobby();
+    colorInput.value = colyseusService.playerColor.value || '#667eea';
     const $ = getStateCallbacks(room);
     
     $(room.state).listen("availableRooms", (value: any) => {
@@ -104,7 +124,8 @@ onMounted(async () => {
         onlinePlayers.value.push({
           sessionId: player.sessionId,
           name: player.name,
-          inGame: player.inGame
+          inGame: player.inGame,
+          color: player.color
         });
       }
 
@@ -116,6 +137,11 @@ onMounted(async () => {
       $(player).listen("inGame", (value: boolean) => {
         const p = onlinePlayers.value.find(p => p.sessionId === player.sessionId);
         if (p) p.inGame = value;
+      });
+
+      $(player).listen("color", (value: string) => {
+        const p = onlinePlayers.value.find(p => p.sessionId === player.sessionId);
+        if (p) p.color = value;
       });
     });
 
@@ -140,6 +166,11 @@ async function updateName() {
     await colyseusService.setPlayerName(inputName.value.trim());
     inputName.value = '';
   }
+}
+
+async function updateColor() {
+  const c = colorInput.value;
+  await colyseusService.setPlayerColor(c);
 }
 
 async function handleQuickPlay() {
@@ -256,6 +287,14 @@ async function joinRoom(roomId: string) {
   color: #667eea;
   font-weight: bold;
 }
+
+.color-picker { display:flex; align-items:center; gap: 10px; margin: 12px 0 16px; }
+.color-label { font-weight: 600; color:#444; margin-right: 6px; }
+.color-input { width: 44px; height: 32px; padding: 0; border:1px solid #000; border-radius:8px; background: transparent; cursor: pointer; box-shadow: 0 6px 16px rgba(0,0,0,0.25); }
+.color-input::-webkit-color-swatch-wrapper { padding:2px; border-radius:8px; }
+.color-input::-webkit-color-swatch { border: none; border-radius:6px; }
+.color-input::-moz-color-swatch { border: none; border-radius:6px; }
+.preview { margin-top: 8px; }
 
 .btn {
   padding: 12px 24px;

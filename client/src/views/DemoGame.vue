@@ -16,15 +16,7 @@
       </div>
 
       <div class="players-section">
-        <div v-for="p in players" :key="p.sessionId" class="player-card" :class="{ 'current-player': p.sessionId === sessionId }">
-          <div class="player-name">{{ p.name }}</div>
-          <div class="player-role">Role: {{ p.role || '—' }}</div>
-          <div class="player-tokens">
-            <span>🦃 {{ p.pavoTokens }}</span>
-            <span>🌽 {{ p.eloteTokens }}</span>
-            <span v-if="p.shameTokens">😶 {{ p.shameTokens }}</span>
-          </div>
-        </div>
+        <PlayerStats v-for="p in players" :key="p.sessionId" :player="p" :highlight="p.sessionId === sessionId" />
       </div>
 
       <div v-if="gameStatus === 'waiting'" class="waiting-area">
@@ -75,6 +67,7 @@ import G2 from './games/G2.vue';
 import G3 from './games/G3.vue';
 import G4 from './games/G4.vue';
 import G5 from './games/G5.vue';
+import PlayerStats from './games/PlayerStats.vue';
 import ChatWidget from './games/ChatWidget.vue';
 
 const router = useRouter();
@@ -159,12 +152,14 @@ onMounted(() => {
         pavoTokens: player.pavoTokens,
         eloteTokens: player.eloteTokens,
         shameTokens: player.shameTokens,
+        color: player.color,
       });
     }
     $(player).listen("role", (v: string) => { const p = players.value.find(x => x.sessionId === key); if (p) p.role = v; });
     $(player).listen("pavoTokens", (v: number) => { const p = players.value.find(x => x.sessionId === key); if (p) p.pavoTokens = v; });
     $(player).listen("eloteTokens", (v: number) => { const p = players.value.find(x => x.sessionId === key); if (p) p.eloteTokens = v; });
     $(player).listen("shameTokens", (v: number) => { const p = players.value.find(x => x.sessionId === key); if (p) p.shameTokens = v; });
+    $(player).listen("color", (v: string) => { const p = players.value.find(x => x.sessionId === key); if (p) p.color = v; });
   });
   $(room.state).players.onRemove((player: any, key: string) => {
     const i = players.value.findIndex(p => p.sessionId === key);
@@ -212,7 +207,6 @@ function leaveGame() { colyseusService.leaveGame();
 .btn-leave { background:#f44336; color:white; }
 .players-section { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 12px 0; }
 .player-card { padding: 12px; background:#f8f9fa; border-radius: 10px; }
-.player-card.current-player { outline: 2px solid #667eea; }
 .player-role { color:#666; margin-top: 4px; }
 .player-tokens { display:flex; gap: 12px; margin-top: 8px; }
 .waiting-area { text-align:center; padding: 24px 0; }

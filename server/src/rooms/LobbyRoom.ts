@@ -13,6 +13,10 @@ export class LobbyRoom extends Room<LobbyState> {
       this.handleSetName(client, playerName);
     });
 
+    this.onMessage("setColor", (client, color: string) => {
+      this.handleSetColor(client, color);
+    });
+
     this.onMessage("quickPlay", (client) => {
       this.handleQuickPlay(client);
     });
@@ -36,7 +40,8 @@ export class LobbyRoom extends Room<LobbyState> {
 
     client.send("welcome", {
       sessionId: client.sessionId,
-      assignedName: uniqueName
+      assignedName: uniqueName,
+      color: this.state.players.get(client.sessionId)?.color || "#667eea"
     });
 
     this.updateAvailableRooms();
@@ -78,6 +83,18 @@ export class LobbyRoom extends Room<LobbyState> {
     client.send("nameUpdated", {
       name: uniqueName
     });
+  }
+
+  private handleSetColor(client: Client, color: string) {
+    const currentPlayer = this.state.players.get(client.sessionId);
+    if (!currentPlayer) return;
+    const sanitized = (color || '').toString().trim();
+    // Basic validation for hex color (#rgb or #rrggbb)
+    if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(sanitized)) {
+      return;
+    }
+    currentPlayer.color = sanitized;
+    client.send("colorUpdated", { color: sanitized });
   }
 
   private async handleQuickPlay(client: Client) {

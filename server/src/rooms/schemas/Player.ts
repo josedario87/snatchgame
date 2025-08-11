@@ -9,6 +9,7 @@ export class Player extends Schema {
   @type("number") pavoTokens: number = 0;
   @type("number") eloteTokens: number = 0;
   @type("number") shameTokens: number = 0;
+  @type("string") color: string = "#667eea";
 
   constructor(sessionId: string, name: string) {
     super();
@@ -20,6 +21,7 @@ export class Player extends Schema {
     this.pavoTokens = 0;
     this.eloteTokens = 0;
     this.shameTokens = 0;
+    this.color = "#667eea";
   }
 
   incrementClicks(): void {
