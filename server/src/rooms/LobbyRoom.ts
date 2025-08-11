@@ -32,15 +32,11 @@ export class LobbyRoom extends Room<LobbyState> {
 
   onJoin(client: Client, options: any) {
     console.log(`[LobbyRoom] ${client.sessionId} joined lobby`);
-    
-    const defaultName = `guest`;
-    const uniqueName = NameManager.getInstance().generateUniquePlayerName(defaultName, client.sessionId);
-    
-    this.state.addPlayer(client.sessionId, uniqueName);
+    // Do NOT assign a default name on join. Wait until client presses "Set Name".
+    this.state.addPlayer(client.sessionId, "");
 
     client.send("welcome", {
       sessionId: client.sessionId,
-      assignedName: uniqueName,
       color: this.state.players.get(client.sessionId)?.color || "#667eea"
     });
 
@@ -100,6 +96,11 @@ export class LobbyRoom extends Room<LobbyState> {
   private async handleQuickPlay(client: Client) {
     const player = this.state.players.get(client.sessionId);
     if (!player || player.inGame) return;
+    // Prevent players without a confirmed name from joining games
+    if (!player.name || !player.name.trim()) {
+      client.send("error", { message: "Please set a name before joining a game." });
+      return;
+    }
 
     try {
       // First try to find an available room
@@ -138,6 +139,10 @@ export class LobbyRoom extends Room<LobbyState> {
   private async handleJoinRoom(client: Client, roomId: string) {
     const player = this.state.players.get(client.sessionId);
     if (!player || player.inGame) return;
+    if (!player.name || !player.name.trim()) {
+      client.send("error", { message: "Please set a name before joining a game." });
+      return;
+    }
 
     try {
       // Verify the room exists and is available

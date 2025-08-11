@@ -1,5 +1,6 @@
 import { Client, Room } from "colyseus.js";
 import { ref, Ref } from "vue";
+import { localDB } from "./db";
 
 export interface PlayerData {
   sessionId: string;
@@ -24,12 +25,18 @@ class ColyseusService {
   private client: Client;
   private currentRoom: Room | null = null;
   private apiBase: string;
+  private desiredName: string | null = null;
+  private nameRetryCount: number = 0;
+  private nameRetryTimer: any = null;
+  private readonly LS_KEY_NAME = "snatch.player.name";
+  private readonly LS_KEY_COLOR = "snatch.player.color";
   
   public lobbyRoom: Ref<Room | null> = ref(null);
   public gameRoom: Ref<Room | null> = ref(null);
   public playerName: Ref<string> = ref("");
   public sessionId: Ref<string> = ref("");
   public playerColor: Ref<string> = ref("#667eea");
+  public nameConfirmed: Ref<boolean> = ref(false);
 
   constructor() {
     const defaultHost = typeof window !== "undefined" ? window.location.hostname : "localhost";
@@ -42,6 +49,13 @@ class ColyseusService {
     const httpProtocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "https" : "http";
     const apiFallback = `${httpProtocol}://${defaultHost}:${defaultPort}/api`;
     this.apiBase = (import.meta.env as any).VITE_API_URL || apiFallback;
+    // Hydrate from localStorage for immediate UI
+    try {
+      const savedName = typeof window !== 'undefined' ? (window.localStorage.getItem(this.LS_KEY_NAME) || "") : "";
+      const savedColor = typeof window !== 'undefined' ? (window.localStorage.getItem(this.LS_KEY_COLOR) || "") : "";
+      if (savedName) this.playerName.value = savedName;
+      if (savedColor) this.playerColor.value = savedColor;
+    } catch {}
   }
 
   async joinLobby(): Promise<Room> {
@@ -49,19 +63,77 @@ class ColyseusService {
       const room = await this.client.joinOrCreate("lobby");
       this.lobbyRoom.value = room;
       this.currentRoom = room;
+      // Require explicit confirmation each time we join the lobby
+      this.nameConfirmed.value = false;
+      // Clear any pending name retry from previous sessions
+      this.desiredName = null;
+      this.nameRetryCount = 0;
+      if (this.nameRetryTimer) { clearTimeout(this.nameRetryTimer); this.nameRetryTimer = null; }
 
-      room.onMessage("welcome", (data) => {
+      room.onMessage("welcome", async (data) => {
         this.sessionId.value = data.sessionId;
-        this.playerName.value = data.assignedName;
         if (data.color) this.playerColor.value = data.color;
+        // Initialize local DB and optionally auto-apply saved profile
+        try {
+          await localDB.init();
+          const profile = localDB.getLocalPlayer();
+          // Apply saved color silently
+          if (profile?.color && profile.color !== this.playerColor.value) {
+            this.setPlayerColor(profile.color);
+          }
+          let candidateName = profile?.name || "";
+          if (!candidateName) {
+            try { candidateName = typeof window !== 'undefined' ? (window.localStorage.getItem(this.LS_KEY_NAME) || "") : ""; } catch {}
+          }
+          if (candidateName) {
+            this.playerName.value = candidateName;
+            try { localDB.setName(candidateName); } catch {}
+            this.claimSavedName(candidateName);
+          }
+        } catch (e) {
+          console.warn("Local DB init failed", e);
+          // Fallback purely to localStorage
+          try {
+            const candidateName = typeof window !== 'undefined' ? (window.localStorage.getItem(this.LS_KEY_NAME) || "") : "";
+            if (candidateName) {
+              this.playerName.value = candidateName;
+              this.claimSavedName(candidateName);
+            }
+          } catch {}
+        }
       });
 
       room.onMessage("nameUpdated", (data) => {
         this.playerName.value = data.name;
+        try { localDB.setName(data.name); } catch {}
+        try { if (typeof window !== 'undefined') window.localStorage.setItem(this.LS_KEY_NAME, data.name || ""); } catch {}
+        this.nameConfirmed.value = true;
+
+        // If we are trying to reclaim a saved name and got a suffixed one, retry briefly.
+        if (this.desiredName) {
+          const desired = (this.desiredName || "").trim().toLowerCase();
+          const got = (data.name || "").trim().toLowerCase();
+          if (desired && desired !== got && this.nameRetryCount < 2) {
+            const attempt = ++this.nameRetryCount;
+            if (this.nameRetryTimer) clearTimeout(this.nameRetryTimer);
+            this.nameRetryTimer = setTimeout(() => {
+              // Attempt again; if the previous session has now left, exact name may be free
+              this.setPlayerName(this.desiredName || "");
+            }, attempt * 400);
+            return;
+          }
+          // Either matched desired or exceeded retries; stop retrying
+          this.desiredName = null;
+          this.nameRetryCount = 0;
+          if (this.nameRetryTimer) { clearTimeout(this.nameRetryTimer); this.nameRetryTimer = null; }
+        }
       });
 
       room.onMessage("colorUpdated", (data) => {
-        if (data?.color) this.playerColor.value = data.color;
+        if (data?.color) {
+          this.playerColor.value = data.color;
+          try { localDB.setColor(data.color); } catch {}
+        }
       });
 
       return room;
@@ -74,12 +146,26 @@ class ColyseusService {
   async setPlayerName(name: string): Promise<void> {
     if (this.lobbyRoom.value) {
       this.lobbyRoom.value.send("setName", name);
+      try { if (typeof window !== 'undefined') window.localStorage.setItem(this.LS_KEY_NAME, name || ""); } catch {}
     }
+  }
+
+  // Attempt to reclaim the saved name with a short retry window to avoid race
+  private claimSavedName(name: string): void {
+    this.desiredName = name;
+    this.nameRetryCount = 0;
+    if (this.nameRetryTimer) { clearTimeout(this.nameRetryTimer); this.nameRetryTimer = null; }
+    // Small delay to let any previous session fully leave the lobby
+    this.nameRetryTimer = setTimeout(() => {
+      this.setPlayerName(name);
+      this.nameConfirmed.value = true;
+    }, 150);
   }
 
   async setPlayerColor(color: string): Promise<void> {
     if (this.lobbyRoom.value) {
       this.lobbyRoom.value.send("setColor", color);
+      try { if (typeof window !== 'undefined') window.localStorage.setItem(this.LS_KEY_COLOR, color || ""); } catch {}
     }
   }
 

@@ -11,7 +11,8 @@
   "dependencies": {
     "vue": "latest",
     "vue-router": "latest",
-    "colyseus.js": "latest"
+    "colyseus.js": "latest",
+    "lokijs": "^1.5.12"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "latest",

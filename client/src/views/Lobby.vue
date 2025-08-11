@@ -29,10 +29,12 @@
       </div>
 
       <div class="main-actions">
-        <button @click="handleQuickPlay" class="btn btn-primary btn-large" :disabled="isJoining">
+        <button @click="handleQuickPlay" class="btn btn-primary btn-large" :disabled="isJoining || !nameConfirmed">
           <span v-if="!isJoining">🧪 Demo Play</span>
           <span v-else>Finding match...</span>
         </button>
+        <div v-if="!nameConfirmed" class="hint">Antes de jugar, presiona "Set Name" para confirmar tu nombre.</div>
+        <div v-else class="hint ok">Nombre confirmado ✔</div>
       </div>
 
       <div class="rooms-section">
@@ -45,7 +47,8 @@
             v-for="room in availableRooms"
             :key="room.roomId"
             class="room-card"
-            @click="joinRoom(room.roomId)"
+            :class="{ disabled: !nameConfirmed }"
+            @click="nameConfirmed ? joinRoom(room.roomId) : null"
           >
             <div class="room-info">
               <span class="room-id">Room #{{ room.roomId.slice(0, 6) }}</span>
@@ -78,11 +81,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import PlayerStats from './games/PlayerStats.vue';
 import { useRouter } from 'vue-router';
 import { colyseusService } from '../services/colyseus';
 import { getStateCallbacks } from 'colyseus.js';
+import { localDB } from '../services/db';
 
 const router = useRouter();
 const inputName = ref('');
@@ -93,6 +97,7 @@ const onlinePlayers = ref<any[]>([]);
 const totalPlayers = ref(0);
 
 const playerName = computed(() => colyseusService.playerName.value);
+const nameConfirmed = computed(() => colyseusService.nameConfirmed.value);
 const playerColor = computed(() => colyseusService.playerColor.value);
 const previewPlayer = computed(() => ({
   sessionId: 'preview',
@@ -108,6 +113,21 @@ onMounted(async () => {
   try {
     const room = await colyseusService.joinLobby();
     colorInput.value = colyseusService.playerColor.value || '#667eea';
+
+    // Initialize local DB and prefill inputs if available
+    try {
+      await localDB.init();
+      const profile = localDB.getLocalPlayer();
+      if (profile?.name) inputName.value = profile.name;
+      if (profile?.color) colorInput.value = profile.color;
+    } catch (e) {
+      console.warn('Local DB not available', e);
+    }
+
+    // Keep color input synced with server-updated color
+    watch(() => colyseusService.playerColor.value, (c) => {
+      if (c && c !== colorInput.value) colorInput.value = c;
+    });
     const $ = getStateCallbacks(room);
     
     $(room.state).listen("availableRooms", (value: any) => {
@@ -162,10 +182,10 @@ onUnmounted(() => {
 });
 
 async function updateName() {
-  if (inputName.value.trim()) {
-    await colyseusService.setPlayerName(inputName.value.trim());
-    inputName.value = '';
-  }
+  // Send even if empty; server will assign a default unique name when empty
+  const name = inputName.value.trim();
+  try { localDB.setName(name); } catch {}
+  await colyseusService.setPlayerName(name);
 }
 
 async function updateColor() {
@@ -174,6 +194,7 @@ async function updateColor() {
 }
 
 async function handleQuickPlay() {
+  if (!colyseusService.nameConfirmed.value) return;
   isJoining.value = true;
   console.log('Starting quickPlay...');
   try {
@@ -197,6 +218,7 @@ async function handleQuickPlay() {
 }
 
 async function joinRoom(roomId: string) {
+  if (!colyseusService.nameConfirmed.value) return;
   isJoining.value = true;
   try {
     // For direct room joining, we can use joinGameRoom directly
@@ -460,4 +482,9 @@ async function joinRoom(roomId: string) {
   color: #666;
   font-size: 14px;
 }
+
+/* Additional guards and hints */
+.room-card.disabled { opacity: 0.6; cursor: not-allowed; }
+.hint { color:#666; font-size: 14px; margin-top: 10px; }
+.hint.ok { color: #2e7d32; }
 </style>

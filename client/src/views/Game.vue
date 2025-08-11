@@ -77,6 +77,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { colyseusService } from '../services/colyseus';
+import { localDB } from '../services/db';
 import { getStateCallbacks } from 'colyseus.js';
 
 const router = useRouter();
@@ -197,6 +198,7 @@ function handleClick() {
   if (gameStatus.value !== 'playing') return;
   
   colyseusService.sendClick();
+  try { localDB.incClicks(1); } catch {}
   
   isClicking.value = true;
   clearTimeout(clickTimeout);
