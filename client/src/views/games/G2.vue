@@ -4,7 +4,7 @@
     <div class="controls" v-if="myRole === 'P2'">
       <label><input type="checkbox" :checked="state.forcedByP2" @change="$emit('p2Force', ($event.target as HTMLInputElement).checked)"/> Forzar oferta</label>
     </div>
-    <OfferControls v-if="myRole==='P1' && !state.offer?.active" :disable-no-offer="state.forcedByP2" @propose="onPropose" @no-offer="onNoOffer"/>
+    <OfferControls v-if="myRole==='P1' && !state.offer?.active" :my-role="myRole" :disable-no-offer="state.forcedByP2" @propose="onPropose" @no-offer="onNoOffer"/>
     <div v-if="state.offer?.active && !state.p2Action" class="controls">
       <div class="offer-view">Oferta: 🦃 {{ state.offer.offerPavo }} / 🌽 {{ state.offer.offerElote }} | Pedido: 🦃 {{ state.offer.requestPavo }} / 🌽 {{ state.offer.requestElote }}</div>
       <div v-if="myRole === 'P2'">

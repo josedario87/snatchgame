@@ -1,7 +1,7 @@
 <template>
   <div class="g">
     <h3>G3 – Token de repudio (vergüenza)</h3>
-    <OfferControls v-if="myRole==='P1' && !state.offer?.active" @propose="onPropose" @no-offer="onNoOffer"/>
+    <OfferControls v-if="myRole==='P1' && !state.offer?.active" :my-role="myRole" @propose="onPropose" @no-offer="onNoOffer"/>
     <div v-if="state.offer?.active && !state.p2Action" class="controls">
       <div class="offer-view">Oferta: 🦃 {{ state.offer.offerPavo }} / 🌽 {{ state.offer.offerElote }} | Pedido: 🦃 {{ state.offer.requestPavo }} / 🌽 {{ state.offer.requestElote }}</div>
       <div v-if="myRole === 'P2'">

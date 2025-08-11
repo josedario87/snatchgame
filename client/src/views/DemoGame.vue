@@ -195,11 +195,11 @@ function leaveGame() { colyseusService.leaveGame();
 <style scoped>
 .game { min-height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display:flex; align-items:center; justify-content:center; padding:20px; }
 .game-container { background: white; border-radius: 20px; padding: 24px; max-width: 1000px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-.game-header { display:flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.game-header { display:flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
 .game-header h1 { margin: 0; font-size: 20px; }
 .meta { display:flex; gap: 16px; font-size: 14px; }
 .badge { background:#e3f2fd; color:#2196f3; padding: 2px 8px; border-radius: 12px; font-size: 12px; }
-.variant-selector { display:flex; gap: 8px; }
+.variant-selector { display:flex; gap: 8px; flex-wrap: wrap; }
 .btn { padding: 8px 12px; border-radius: 8px; border: none; cursor: pointer; }
 .btn-variant { background: #f2f2f2; }
 .btn-variant.active { background: #667eea; color: white; }
