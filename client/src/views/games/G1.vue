@@ -2,21 +2,23 @@
   <div class="g">
     <h3>G1 – Sin derechos de propiedad</h3>
     <OfferControls v-if="myRole==='P1' && !state.offer?.active" :my-role="myRole" @propose="onPropose" @no-offer="onNoOffer"/>
-    <div v-if="state.offer?.active && !state.p2Action" class="controls">
-      <div class="offer-view">Oferta: 🦃 {{ state.offer.offerPavo }} / 🌽 {{ state.offer.offerElote }} | Pedido: 🦃 {{ state.offer.requestPavo }} / 🌽 {{ state.offer.requestElote }}</div>
-      <div v-if="myRole === 'P2'">
-        <button class="btn" @click="$emit('p2Action', 'accept')">P2: Aceptar</button>
-        <button class="btn" @click="$emit('p2Action', 'reject')">P2: Rechazar</button>
-        <button class="btn" @click="$emit('p2Action', 'snatch')">P2: Robar</button>
-      </div>
-      <div v-else class="hint">Esperando decisión de P2…</div>
-    </div>
+    <OfferActions
+      :state="state"
+      :my-role="myRole"
+      :current-variant="'G1'"
+      :p1-color="p1?.color"
+      :p2-color="p2?.color"
+      @p2Action="$emit('p2Action', $event)"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import OfferControls from './OfferControls.vue';
-const props = defineProps<{ state: any; myRole: string }>();
+import OfferActions from './OfferActions.vue';
+const props = defineProps<{ state: any; myRole: string; players?: any[] }>();
+const p1 = props.players?.find((p: any) => p.role === 'P1');
+const p2 = props.players?.find((p: any) => p.role === 'P2');
 const emit = defineEmits(['p1Action','p2Action','proposeOffer']);
 function onPropose(payload: any) { 
   emit('proposeOffer', payload); 

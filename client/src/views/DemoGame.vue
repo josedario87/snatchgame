@@ -31,6 +31,7 @@
         <component :is="currentComponent"
                    :state="roundState"
                    :my-role="myRole"
+                   :players="players"
                    @p2Force="onP2Force"
                    @p1Action="onP1Action"
                    @p2Action="onP2Action"
