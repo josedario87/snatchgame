@@ -57,9 +57,9 @@
                   {{ getRoomDetails(room.roomId).players[0].name }}
                 </div>
                 <div class="token-summary">
-                  <span class="token pavo">🦃 <AnimatedNumber :value="getRoomDetails(room.roomId).players[0].pavoTokens || 0" :duration-ms="800" /></span>
-                  <span class="token elote">🌽 <AnimatedNumber :value="getRoomDetails(room.roomId).players[0].eloteTokens || 0" :duration-ms="800" /></span>
-                  <span class="token shame">😳 <AnimatedNumber :value="getRoomDetails(room.roomId).players[0].shameTokens || 0" :duration-ms="800" /></span>
+                  <span class="token pavo">🦃 <AnimatedNumber :value="getRoomDetails(room.roomId).players[0].pavoTokens || 0" :duration-ms="800" :animate-on-mount="true" /></span>
+                  <span class="token elote">🌽 <AnimatedNumber :value="getRoomDetails(room.roomId).players[0].eloteTokens || 0" :duration-ms="800" :animate-on-mount="true" /></span>
+                  <span class="token shame">😳 <AnimatedNumber :value="getRoomDetails(room.roomId).players[0].shameTokens || 0" :duration-ms="800" :animate-on-mount="true" /></span>
                 </div>
               </div>
               <div v-else class="no-data">-</div>
@@ -73,9 +73,9 @@
                   {{ getRoomDetails(room.roomId).players[1].name }}
                 </div>
                 <div class="token-summary">
-                  <span class="token pavo">🦃 <AnimatedNumber :value="getRoomDetails(room.roomId).players[1].pavoTokens || 0" :duration-ms="800" /></span>
-                  <span class="token elote">🌽 <AnimatedNumber :value="getRoomDetails(room.roomId).players[1].eloteTokens || 0" :duration-ms="800" /></span>
-                  <span class="token shame">😳 <AnimatedNumber :value="getRoomDetails(room.roomId).players[1].shameTokens || 0" :duration-ms="800" /></span>
+                  <span class="token pavo">🦃 <AnimatedNumber :value="getRoomDetails(room.roomId).players[1].pavoTokens || 0" :duration-ms="800" :animate-on-mount="true" /></span>
+                  <span class="token elote">🌽 <AnimatedNumber :value="getRoomDetails(room.roomId).players[1].eloteTokens || 0" :duration-ms="800" :animate-on-mount="true" /></span>
+                  <span class="token shame">😳 <AnimatedNumber :value="getRoomDetails(room.roomId).players[1].shameTokens || 0" :duration-ms="800" :animate-on-mount="true" /></span>
                 </div>
               </div>
               <div v-else class="no-data">-</div>

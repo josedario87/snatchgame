@@ -11,10 +11,10 @@
 <script setup lang="ts">
 import { ref, watch, nextTick, onMounted } from 'vue';
 
-const props = defineProps<{ value: number; durationMs?: number; pulseOnFirst?: boolean }>();
+const props = defineProps<{ value: number; durationMs?: number; pulseOnFirst?: boolean; animateOnMount?: boolean }>();
 
-const prev = ref<number>(props.value ?? 0);
-const display = ref<number>(props.value ?? 0);
+const prev = ref<number>(props.animateOnMount ? 0 : (props.value ?? 0));
+const display = ref<number>(props.animateOnMount ? 0 : (props.value ?? 0));
 const animating = ref(false);
 const running = ref(false);
 const dir = ref<'inc' | 'dec'>('inc');
@@ -22,19 +22,12 @@ const dir = ref<'inc' | 'dec'>('inc');
 const pulse = ref(false);
 const viewportEl = ref<HTMLElement | null>(null);
 
-onMounted(() => {
-  if (props.pulseOnFirst) {
-    pulse.value = true;
-    setTimeout(() => { pulse.value = false; }, 600);
-  }
-});
-
-watch(() => props.value, async (nv, ov) => {
-  if (nv === ov) return;
+async function animateToValue(newValue: number, oldValue: number) {
+  if (newValue === oldValue) return;
   const d = (props.durationMs ?? 1500);
-  dir.value = nv > prev.value ? 'inc' : 'dec';
+  dir.value = newValue > oldValue ? 'inc' : 'dec';
   // Setup animation
-  display.value = nv;
+  display.value = newValue;
   animating.value = true;
   running.value = false;
   await nextTick();
@@ -43,11 +36,32 @@ watch(() => props.value, async (nv, ov) => {
     running.value = true;
     setTimeout(() => {
       // End animation
-      prev.value = nv;
+      prev.value = newValue;
       animating.value = false;
       running.value = false;
     }, d);
   });
+}
+
+onMounted(async () => {
+  if (props.pulseOnFirst) {
+    pulse.value = true;
+    setTimeout(() => { pulse.value = false; }, 600);
+  }
+  
+  // Animate from 0 to initial value if animateOnMount is true
+  if (props.animateOnMount && props.value !== 0) {
+    await nextTick();
+    await animateToValue(props.value, 0);
+  } else if (!props.animateOnMount) {
+    // Set initial values without animation
+    prev.value = props.value ?? 0;
+    display.value = props.value ?? 0;
+  }
+});
+
+watch(() => props.value, async (nv) => {
+  await animateToValue(nv, prev.value);
 });
 </script>
 
