@@ -1,7 +1,6 @@
 export class NameManager {
   private static instance: NameManager;
-  private nameCounters: Map<string, number> = new Map();
-  private sessionToName: Map<string, string> = new Map();
+  private uuidToName: Map<string, string> = new Map();
 
   private constructor() {}
 
@@ -12,16 +11,22 @@ export class NameManager {
     return NameManager.instance;
   }
 
-  generateUniquePlayerName(baseName: string, sessionId: string): string {
+  generateUniquePlayerName(baseName: string, uuid: string): string {
+    // If UUID already has a name, return it
+    const existingName = this.uuidToName.get(uuid);
+    if (existingName) {
+      return existingName;
+    }
+
     const normalizedName = baseName.trim().toLowerCase();
     if (!normalizedName) {
       // Default base name when none is provided
-      return this.generateUniquePlayerName('guest', sessionId);
+      return this.generateUniquePlayerName('guest', uuid);
     }
 
     // Try exact name if not in use; otherwise, append incremental suffixes
     const isInUse = (name: string) => {
-      for (const val of this.sessionToName.values()) {
+      for (const val of this.uuidToName.values()) {
         if (val === name) return true;
       }
       return false;
@@ -34,22 +39,20 @@ export class NameManager {
       uniqueName = `${normalizedName}-${n}`;
     }
 
-    this.sessionToName.set(sessionId, uniqueName);
+    this.uuidToName.set(uuid, uniqueName);
     return uniqueName;
   }
 
-  releasePlayerName(sessionId: string): void {
-    const name = this.sessionToName.get(sessionId);
-    if (name) {
-      this.sessionToName.delete(sessionId);
-    }
+  releasePlayerName(uuid: string): void {
+    // Names are now persistent per UUID, so we don't release them
+    // They only get cleared when the server restarts
   }
 
-  getPlayerName(sessionId: string): string | undefined {
-    return this.sessionToName.get(sessionId);
+  getPlayerName(uuid: string): string | undefined {
+    return this.uuidToName.get(uuid);
   }
 
   getAllActivePlayers(): string[] {
-    return Array.from(this.sessionToName.values());
+    return Array.from(this.uuidToName.values());
   }
 }

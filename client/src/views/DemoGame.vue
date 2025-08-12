@@ -194,6 +194,15 @@ onMounted(() => {
   room.onMessage("gameEnd", () => {
     try { if (typeof window !== 'undefined') { window.localStorage.removeItem('snatch.game.rtoken'); } } catch {}
   });
+
+  // Register additional message handlers to avoid warnings
+  room.onMessage("gamePaused", () => {
+    // Game paused, could update UI state if needed
+  });
+
+  room.onMessage("variantChanged", (data: { variant: string }) => {
+    currentVariant.value = data.variant as any;
+  });
   }
 });
 

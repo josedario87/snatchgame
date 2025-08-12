@@ -49,7 +49,11 @@ class ColyseusService {
 
   async joinLobby(): Promise<Room> {
     try {
-      const room = await this.client.joinOrCreate("lobby");
+      // Initialize DB first to get UUID
+      await localDB.init();
+      const uuid = localDB.getUUID();
+      
+      const room = await this.client.joinOrCreate("lobby", { uuid });
       this.lobbyRoom.value = room;
       this.currentRoom = room;
       // Require explicit confirmation each time we join the lobby (auto-confirm if saved name exists)
@@ -58,22 +62,29 @@ class ColyseusService {
       room.onMessage("welcome", async (data) => {
         this.sessionId.value = data.sessionId;
         if (data.color) this.playerColor.value = data.color;
-        // Initialize local DB and optionally auto-apply saved profile
-        try {
-          await localDB.init();
-          const profile = localDB.getLocalPlayer();
-          // Apply saved color silently
-          if (profile?.color && profile.color !== this.playerColor.value) {
-            this.setPlayerColor(profile.color);
+        
+        // If server already has a name for us, use it
+        if (data.name) {
+          this.playerName.value = data.name;
+          this.nameConfirmed.value = true;
+        } else {
+          // Initialize local DB and optionally auto-apply saved profile
+          try {
+            await localDB.init();
+            const profile = localDB.getLocalPlayer();
+            // Apply saved color silently
+            if (profile?.color && profile.color !== this.playerColor.value) {
+              this.setPlayerColor(profile.color);
+            }
+            if (profile?.name) {
+              this.playerName.value = profile.name;
+              try { localDB.setName(profile.name); } catch {}
+              this.setPlayerName(profile.name);
+              this.nameConfirmed.value = true;
+            }
+          } catch (e) {
+            console.warn("Local DB init failed", e);
           }
-          if (profile?.name) {
-            this.playerName.value = profile.name;
-            try { localDB.setName(profile.name); } catch {}
-            this.setPlayerName(profile.name);
-            this.nameConfirmed.value = true;
-          }
-        } catch (e) {
-          console.warn("Local DB init failed", e);
         }
       });
 
@@ -119,7 +130,8 @@ class ColyseusService {
 
   async setPlayerName(name: string): Promise<void> {
     if (this.lobbyRoom.value) {
-      this.lobbyRoom.value.send("setName", name);
+      const uuid = localDB.getUUID();
+      this.lobbyRoom.value.send("setName", { name, uuid });
     }
   }
 

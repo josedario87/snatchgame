@@ -2,6 +2,7 @@ import Loki from "lokijs";
 
 export interface LocalPlayerDoc {
   id: string; // fixed id for local profile
+  uuid: string; // persistent unique identifier
   name: string;
   color: string;
   stats: {
@@ -29,13 +30,19 @@ class LocalDBService {
             this.players = this.db!.addCollection<LocalPlayerDoc>("players", { unique: ["id"] });
           }
           // Ensure local profile exists
-          if (!this.players.by("id", "local")) {
+          let localPlayer = this.players.by("id", "local");
+          if (!localPlayer) {
             this.players.insert({
               id: "local",
+              uuid: this.generateUUID(),
               name: "",
               color: "#667eea",
               stats: { totalClicks: 0, gamesPlayed: 0, wins: 0, losses: 0 }
             });
+          } else if (!localPlayer.uuid) {
+            // Migrate existing profiles to have a UUID
+            localPlayer.uuid = this.generateUUID();
+            this.players.update(localPlayer);
           }
           this.initialized = true;
           this.db!.saveDatabase(() => resolve());
@@ -84,6 +91,25 @@ class LocalDBService {
     else doc.stats.losses = (doc.stats.losses || 0) + 1;
     this.col.update(doc);
     this.db?.saveDatabase();
+  }
+
+  getUUID(): string {
+    const doc = this.getLocalPlayer();
+    if (!doc.uuid) {
+      doc.uuid = this.generateUUID();
+      this.col.update(doc);
+      this.db?.saveDatabase();
+    }
+    return doc.uuid;
+  }
+
+  private generateUUID(): string {
+    // Simple UUID v4 generator
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
   }
 }
 

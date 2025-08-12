@@ -4,13 +4,14 @@ import { NameManager } from "../utils/nameManager";
 
 export class LobbyRoom extends Room<LobbyState> {
   private updateInterval?: NodeJS.Timeout;
+  private sessionToUuid: Map<string, string> = new Map();
 
   onCreate(options: any) {
     this.setState(new LobbyState());
     this.setPrivate(false);
 
-    this.onMessage("setName", (client, playerName: string) => {
-      this.handleSetName(client, playerName);
+    this.onMessage("setName", (client, data: { name: string; uuid: string }) => {
+      this.handleSetName(client, data);
     });
 
     this.onMessage("setColor", (client, color: string) => {
@@ -31,14 +32,29 @@ export class LobbyRoom extends Room<LobbyState> {
   }
 
   onJoin(client: Client, options: any) {
-    console.log(`[LobbyRoom] ${client.sessionId} joined lobby`);
-    // Do NOT assign a default name on join. Wait until client presses "Set Name".
-    this.state.addPlayer(client.sessionId, "");
-
-    client.send("welcome", {
-      sessionId: client.sessionId,
-      color: this.state.players.get(client.sessionId)?.color || "#667eea"
-    });
+    console.log(`[LobbyRoom] ${client.sessionId} joined lobby with UUID: ${options.uuid}`);
+    
+    // Store UUID mapping if provided
+    if (options.uuid) {
+      this.sessionToUuid.set(client.sessionId, options.uuid);
+      
+      // Check if this UUID already has a name
+      const existingName = NameManager.getInstance().getPlayerName(options.uuid);
+      this.state.addPlayer(client.sessionId, existingName || "");
+      
+      client.send("welcome", {
+        sessionId: client.sessionId,
+        name: existingName || "",
+        color: this.state.players.get(client.sessionId)?.color || "#667eea"
+      });
+    } else {
+      // Fallback for clients without UUID (shouldn't happen in normal flow)
+      this.state.addPlayer(client.sessionId, "");
+      client.send("welcome", {
+        sessionId: client.sessionId,
+        color: this.state.players.get(client.sessionId)?.color || "#667eea"
+      });
+    }
 
     this.updateAvailableRooms();
   }
@@ -46,10 +62,8 @@ export class LobbyRoom extends Room<LobbyState> {
   onLeave(client: Client, consented: boolean) {
     console.log(`[LobbyRoom] ${client.sessionId} left lobby`);
     
-    const player = this.state.players.get(client.sessionId);
-    if (player) {
-      NameManager.getInstance().releasePlayerName(client.sessionId);
-    }
+    // Clean up UUID mapping
+    this.sessionToUuid.delete(client.sessionId);
     
     this.state.removePlayer(client.sessionId);
   }
@@ -61,18 +75,21 @@ export class LobbyRoom extends Room<LobbyState> {
       clearInterval(this.updateInterval);
     }
 
-    this.state.players.forEach(player => {
-      NameManager.getInstance().releasePlayerName(player.sessionId);
-    });
+    // Clear UUID mappings
+    this.sessionToUuid.clear();
   }
 
-  private handleSetName(client: Client, playerName: string) {
+  private handleSetName(client: Client, data: { name: string; uuid: string }) {
     const currentPlayer = this.state.players.get(client.sessionId);
     if (!currentPlayer) return;
 
-    NameManager.getInstance().releasePlayerName(client.sessionId);
+    // Update UUID mapping if provided
+    if (data.uuid) {
+      this.sessionToUuid.set(client.sessionId, data.uuid);
+    }
     
-    const uniqueName = NameManager.getInstance().generateUniquePlayerName(playerName, client.sessionId);
+    const uuid = this.sessionToUuid.get(client.sessionId) || client.sessionId;
+    const uniqueName = NameManager.getInstance().generateUniquePlayerName(data.name, uuid);
     
     currentPlayer.name = uniqueName;
 
