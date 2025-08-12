@@ -261,6 +261,20 @@ async function joinRoom(roomId: string) {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 
+@media (max-width: 640px) {
+  .lobby-container {
+    padding: 20px;
+  }
+  
+  .name-input {
+    min-width: 100%;
+  }
+  
+  .btn-secondary {
+    min-width: 100px;
+  }
+}
+
 .title {
   font-size: 3rem;
   text-align: center;
@@ -269,6 +283,12 @@ async function joinRoom(roomId: string) {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+@media (max-width: 640px) {
+  .title {
+    font-size: 2rem;
+  }
 }
 
 .subtitle {
@@ -287,12 +307,14 @@ async function joinRoom(roomId: string) {
 
 .name-input-group {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 15px;
 }
 
 .name-input {
   flex: 1;
+  min-width: 200px;
   padding: 12px;
   border: 2px solid #e0e0e0;
   border-radius: 8px;
