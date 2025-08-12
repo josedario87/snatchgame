@@ -25,11 +25,7 @@ class ColyseusService {
   private client: Client;
   private currentRoom: Room | null = null;
   private apiBase: string;
-  private desiredName: string | null = null;
-  private nameRetryCount: number = 0;
-  private nameRetryTimer: any = null;
-  private readonly LS_KEY_NAME = "snatch.player.name";
-  private readonly LS_KEY_COLOR = "snatch.player.color";
+  private readonly LS_KEY_RECONNECT = "snatch.game.rtoken";
   
   public lobbyRoom: Ref<Room | null> = ref(null);
   public gameRoom: Ref<Room | null> = ref(null);
@@ -49,13 +45,6 @@ class ColyseusService {
     const httpProtocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "https" : "http";
     const apiFallback = `${httpProtocol}://${defaultHost}:${defaultPort}/api`;
     this.apiBase = (import.meta.env as any).VITE_API_URL || apiFallback;
-    // Hydrate from localStorage for immediate UI
-    try {
-      const savedName = typeof window !== 'undefined' ? (window.localStorage.getItem(this.LS_KEY_NAME) || "") : "";
-      const savedColor = typeof window !== 'undefined' ? (window.localStorage.getItem(this.LS_KEY_COLOR) || "") : "";
-      if (savedName) this.playerName.value = savedName;
-      if (savedColor) this.playerColor.value = savedColor;
-    } catch {}
   }
 
   async joinLobby(): Promise<Room> {
@@ -63,12 +52,8 @@ class ColyseusService {
       const room = await this.client.joinOrCreate("lobby");
       this.lobbyRoom.value = room;
       this.currentRoom = room;
-      // Require explicit confirmation each time we join the lobby
+      // Require explicit confirmation each time we join the lobby (auto-confirm if saved name exists)
       this.nameConfirmed.value = false;
-      // Clear any pending name retry from previous sessions
-      this.desiredName = null;
-      this.nameRetryCount = 0;
-      if (this.nameRetryTimer) { clearTimeout(this.nameRetryTimer); this.nameRetryTimer = null; }
 
       room.onMessage("welcome", async (data) => {
         this.sessionId.value = data.sessionId;
@@ -81,52 +66,21 @@ class ColyseusService {
           if (profile?.color && profile.color !== this.playerColor.value) {
             this.setPlayerColor(profile.color);
           }
-          let candidateName = profile?.name || "";
-          if (!candidateName) {
-            try { candidateName = typeof window !== 'undefined' ? (window.localStorage.getItem(this.LS_KEY_NAME) || "") : ""; } catch {}
-          }
-          if (candidateName) {
-            this.playerName.value = candidateName;
-            try { localDB.setName(candidateName); } catch {}
-            this.claimSavedName(candidateName);
+          if (profile?.name) {
+            this.playerName.value = profile.name;
+            try { localDB.setName(profile.name); } catch {}
+            this.setPlayerName(profile.name);
+            this.nameConfirmed.value = true;
           }
         } catch (e) {
           console.warn("Local DB init failed", e);
-          // Fallback purely to localStorage
-          try {
-            const candidateName = typeof window !== 'undefined' ? (window.localStorage.getItem(this.LS_KEY_NAME) || "") : "";
-            if (candidateName) {
-              this.playerName.value = candidateName;
-              this.claimSavedName(candidateName);
-            }
-          } catch {}
         }
       });
 
       room.onMessage("nameUpdated", (data) => {
         this.playerName.value = data.name;
         try { localDB.setName(data.name); } catch {}
-        try { if (typeof window !== 'undefined') window.localStorage.setItem(this.LS_KEY_NAME, data.name || ""); } catch {}
         this.nameConfirmed.value = true;
-
-        // If we are trying to reclaim a saved name and got a suffixed one, retry briefly.
-        if (this.desiredName) {
-          const desired = (this.desiredName || "").trim().toLowerCase();
-          const got = (data.name || "").trim().toLowerCase();
-          if (desired && desired !== got && this.nameRetryCount < 2) {
-            const attempt = ++this.nameRetryCount;
-            if (this.nameRetryTimer) clearTimeout(this.nameRetryTimer);
-            this.nameRetryTimer = setTimeout(() => {
-              // Attempt again; if the previous session has now left, exact name may be free
-              this.setPlayerName(this.desiredName || "");
-            }, attempt * 400);
-            return;
-          }
-          // Either matched desired or exceeded retries; stop retrying
-          this.desiredName = null;
-          this.nameRetryCount = 0;
-          if (this.nameRetryTimer) { clearTimeout(this.nameRetryTimer); this.nameRetryTimer = null; }
-        }
       });
 
       room.onMessage("colorUpdated", (data) => {
@@ -143,29 +97,35 @@ class ColyseusService {
     }
   }
 
-  async setPlayerName(name: string): Promise<void> {
-    if (this.lobbyRoom.value) {
-      this.lobbyRoom.value.send("setName", name);
-      try { if (typeof window !== 'undefined') window.localStorage.setItem(this.LS_KEY_NAME, name || ""); } catch {}
+  async tryReconnectToOngoingGame(): Promise<Room | null> {
+    try {
+      const token = typeof window !== 'undefined' ? (window.localStorage.getItem(this.LS_KEY_RECONNECT) || "") : "";
+      if (!token) return null;
+      const room = await this.client.reconnect(token);
+      this.gameRoom.value = room;
+      this.currentRoom = room;
+      // Ensure local session id reflects the active room session
+      try { this.sessionId.value = (room as any).sessionId || this.sessionId.value; } catch {}
+      try { if (typeof window !== 'undefined') window.localStorage.setItem(this.LS_KEY_RECONNECT, (room as any).reconnectionToken || token); } catch {}
+      return room;
+    } catch (e) {
+      console.warn('Reconnection failed, clearing tokens');
+      try {
+        if (typeof window !== 'undefined') { window.localStorage.removeItem(this.LS_KEY_RECONNECT); }
+      } catch {}
+      return null;
     }
   }
 
-  // Attempt to reclaim the saved name with a short retry window to avoid race
-  private claimSavedName(name: string): void {
-    this.desiredName = name;
-    this.nameRetryCount = 0;
-    if (this.nameRetryTimer) { clearTimeout(this.nameRetryTimer); this.nameRetryTimer = null; }
-    // Small delay to let any previous session fully leave the lobby
-    this.nameRetryTimer = setTimeout(() => {
-      this.setPlayerName(name);
-      this.nameConfirmed.value = true;
-    }, 150);
+  async setPlayerName(name: string): Promise<void> {
+    if (this.lobbyRoom.value) {
+      this.lobbyRoom.value.send("setName", name);
+    }
   }
 
   async setPlayerColor(color: string): Promise<void> {
     if (this.lobbyRoom.value) {
       this.lobbyRoom.value.send("setColor", color);
-      try { if (typeof window !== 'undefined') window.localStorage.setItem(this.LS_KEY_COLOR, color || ""); } catch {}
     }
   }
 
@@ -197,6 +157,9 @@ class ColyseusService {
           console.log('Setting gameRoom.value...');
           this.gameRoom.value = gameRoom;
           this.currentRoom = gameRoom;
+          // Update current session id for correct role mapping
+          try { this.sessionId.value = (gameRoom as any).sessionId || this.sessionId.value; } catch {}
+          try { if (typeof window !== 'undefined') window.localStorage.setItem(this.LS_KEY_RECONNECT, (gameRoom as any).reconnectionToken || ""); } catch {}
           console.log('gameRoom.value is now:', this.gameRoom.value);
           
           // Don't register message handlers here - let the Game component handle them
@@ -226,7 +189,8 @@ class ColyseusService {
       playerName: this.playerName.value,
       playerColor: this.playerColor.value
       });
-      
+      try { this.sessionId.value = (gameRoom as any).sessionId || this.sessionId.value; } catch {}
+      try { if (typeof window !== 'undefined') window.localStorage.setItem(this.LS_KEY_RECONNECT, (gameRoom as any).reconnectionToken || ""); } catch {}
       this.gameRoom.value = gameRoom;
       this.currentRoom = gameRoom;
       
@@ -314,6 +278,7 @@ class ColyseusService {
         this.currentRoom = null;
       }
     }
+    try { if (typeof window !== 'undefined') { window.localStorage.removeItem(this.LS_KEY_RECONNECT); } } catch {}
   }
 
   leaveCurrentRoom(): void {

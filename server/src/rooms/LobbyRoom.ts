@@ -148,7 +148,8 @@ export class LobbyRoom extends Room<LobbyState> {
       // Verify the room exists and is available
       const rooms = await matchMaker.query({ roomId });
       
-      if (rooms.length === 0 || rooms[0].clients >= 2) {
+      const status = rooms[0]?.metadata?.gameStatus || "waiting";
+      if (rooms.length === 0 || rooms[0].clients >= 2 || status !== "waiting") {
         throw new Error("Room not available");
       }
 
@@ -175,7 +176,7 @@ export class LobbyRoom extends Room<LobbyState> {
       const rooms = await matchMaker.query({ name: "game" });
       
       const availableRooms = rooms
-        .filter(room => !room.locked && room.clients < 2)
+        .filter(room => (room.metadata?.gameStatus || "waiting") === "waiting" && room.clients < 2)
         .map(room => new AvailableRoom(
           room.roomId,
           room.clients,

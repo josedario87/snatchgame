@@ -115,12 +115,22 @@ const componentMap: Record<string, any> = { G1, G2, G3, G4, G5 };
 const currentComponent = computed(() => componentMap[currentVariant.value]);
 
 onMounted(() => {
-  const room = colyseusService.gameRoom.value;
+  let room = colyseusService.gameRoom.value;
   if (!room) {
-    router.push('/');
+    // Try reconnection first
+    colyseusService.tryReconnectToOngoingGame().then(r => {
+      if (!r) {
+        router.push('/');
+        return;
+      }
+      setupRoom(r);
+    });
     return;
   }
 
+  setupRoom(room);
+
+  function setupRoom(room: any) {
   const $ = getStateCallbacks(room);
 
   room.onStateChange.once((state: any) => {
@@ -171,6 +181,11 @@ onMounted(() => {
     colyseusService.sessionId.value = info.sessionId;
     colyseusService.playerName.value = info.name;
   });
+
+  room.onMessage("gameEnd", () => {
+    try { if (typeof window !== 'undefined') { window.localStorage.removeItem('snatch.game.rtoken'); } } catch {}
+  });
+  }
 });
 
 function roomOffer<K extends string>(key: K): any {
@@ -189,8 +204,11 @@ function onP2Action(action: 'accept'|'reject'|'snatch') { colyseusService.p2Acti
 function onReport(val: boolean) { colyseusService.report(val); }
 function onAssignShame(val: boolean) { colyseusService.assignShame(val); }
 
-function leaveGame() { colyseusService.leaveGame();
-  router.push('/'); }
+function leaveGame() { 
+  colyseusService.leaveGame();
+  try { if (typeof window !== 'undefined') { window.localStorage.removeItem('snatch.game.roomId'); window.localStorage.removeItem('snatch.game.sessionId'); } } catch {}
+  router.push('/');
+}
 </script>
 
 <style scoped>

@@ -111,6 +111,12 @@ const previewPlayer = computed(() => ({
 
 onMounted(async () => {
   try {
+    // Try reconnect to an ongoing game first
+    const reconnected = await colyseusService.tryReconnectToOngoingGame();
+    if (reconnected) {
+      router.push('/demo');
+      return;
+    }
     const room = await colyseusService.joinLobby();
     colorInput.value = colyseusService.playerColor.value || '#667eea';
 
@@ -228,7 +234,7 @@ async function joinRoom(roomId: string) {
       colyseusService.lobbyRoom.value.leave();
       colyseusService.lobbyRoom.value = null;
     }
-    router.push('/game');
+    router.push('/demo');
   } catch (error) {
     console.error('Failed to join room:', error);
     isJoining.value = false;

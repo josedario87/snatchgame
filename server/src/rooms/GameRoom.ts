@@ -21,6 +21,8 @@ export class GameRoom extends Room<GameState> {
   onCreate(options: any) {
     this.setState(new GameState());
     this.state.roomId = this.roomId;
+    // Expose status via metadata for lobby listing
+    this.setMetadata({ gameStatus: 'waiting' });
 
     // Variant selection (both players can change)
     this.onMessage("setVariant", (client, variant: string) => {
@@ -207,6 +209,11 @@ export class GameRoom extends Room<GameState> {
 
   onJoin(client: Client, options: any) {
     console.log(`[GameRoom] ${client.sessionId} joined room ${this.roomId} with name: ${options.playerName}`);
+    // Prevent new joins if game already started or two players are registered
+    if (this.state.gameStatus !== GameStatus.WAITING || this.state.players.size >= 2) {
+      try { client.leave(1000); } catch {}
+      return;
+    }
 
     // Use the playerName passed from the lobby - don't generate a new one!
     const playerName = options.playerName || "player";
@@ -256,6 +263,13 @@ export class GameRoom extends Room<GameState> {
       player.connected = true;
     }
 
+    // Send player info so client can rehydrate local session state
+    client.send("playerInfo", {
+      sessionId: client.sessionId,
+      name: player?.name || "player",
+      roomId: this.roomId
+    });
+
     if (this.state.gameStatus === GameStatus.PAUSED && this.getConnectedPlayersCount() === 2) {
       this.state.resumeGame();
     }
@@ -274,6 +288,7 @@ export class GameRoom extends Room<GameState> {
   private startGame() {
     console.log(`[GameRoom] Starting demo game in room ${this.roomId}`);
     this.state.startGame();
+    this.setMetadata({ gameStatus: 'playing' });
     // G2: Force offer by default when starting game
     if (this.state.currentVariant === 'G2') {
       this.state.forcedByP2 = true;
@@ -287,11 +302,13 @@ export class GameRoom extends Room<GameState> {
     console.log(`[GameRoom] Pausing game in room ${this.roomId}`);
     this.state.pauseGame();
     this.broadcast("gamePaused");
+    this.setMetadata({ gameStatus: 'paused' });
   }
 
   private endGame() {
     console.log(`[GameRoom] Demo game ended in room ${this.roomId}`);
     this.broadcast("gameEnd", {});
+    this.setMetadata({ gameStatus: 'finished' });
   }
   
   private resolveP2Action() {
@@ -352,6 +369,7 @@ export class GameRoom extends Room<GameState> {
 
     this.state.restartGame();
     this.broadcast("gameRestart");
+    this.setMetadata({ gameStatus: 'waiting' });
 
     if (this.state.players.size === 2) {
       setTimeout(() => this.startGame(), 500);

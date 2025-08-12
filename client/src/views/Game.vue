@@ -95,17 +95,28 @@ onMounted(() => {
   console.log('Game component mounted');
   console.log('colyseusService.gameRoom:', colyseusService.gameRoom);
   console.log('colyseusService.gameRoom.value:', colyseusService.gameRoom.value);
-  const room = colyseusService.gameRoom.value;
+  let room = colyseusService.gameRoom.value;
   console.log('Current game room:', room);
   
   if (!room) {
-    console.error('No game room found, redirecting to lobby...');
-    router.push('/');
+    console.warn('No game room found, trying reconnection...');
+    // Attempt reconnection if tokens are available
+    colyseusService.tryReconnectToOngoingGame().then((r) => {
+      if (!r) {
+        console.error('Reconnection failed, redirecting to lobby...');
+        router.push('/');
+        return;
+      }
+      setupRoom(r);
+    });
     return;
   }
   
+  setupRoom(room);
+  
   console.log('Setting up game room listeners...');
 
+  function setupRoom(room: any) {
   const $ = getStateCallbacks(room);
 
   // Wait for the initial state sync (do not manually push players here to avoid duplicates)
@@ -174,6 +185,7 @@ onMounted(() => {
   room.onMessage("gameEnd", (data) => {
     console.log("Game ended!", data);
     gameStatus.value = 'finished';
+    try { if (typeof window !== 'undefined') { window.localStorage.removeItem('snatch.game.rtoken'); } } catch {}
   });
 
   room.onMessage("gamePaused", () => {
@@ -186,6 +198,7 @@ onMounted(() => {
     players.value.forEach(p => p.clicks = 0);
     gameStatus.value = 'waiting';
   });
+}
 });
 
 onUnmounted(() => {
