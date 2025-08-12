@@ -1,7 +1,13 @@
 <template>
   <div class="dashboard">
     <div class="dashboard-header">
-      <h1>🎛️ Admin Dashboard</h1>
+      <div class="header-top">
+        <h1>🎛️ Admin Dashboard</h1>
+        <div class="connection-status">
+          <div :class="['status-indicator', { 'connected': isSSEConnected, 'disconnected': !isSSEConnected }]"></div>
+          <span class="status-text">{{ isSSEConnected ? 'Real-time' : 'Polling' }}</span>
+        </div>
+      </div>
       <div class="stats-summary">
         <div class="stat-card">
           <span class="stat-label">Total CCU</span>
@@ -20,87 +26,50 @@
 
     <div class="dashboard-content">
       <div class="rooms-section">
-        <h2>Active Game Rooms</h2>
+        <div class="section-header">
+          <h2>Active Game Rooms</h2>
+          <div class="view-controls">
+            <button 
+              @click="viewMode = 'table'" 
+              :class="['btn', 'btn-view-mode', { active: viewMode === 'table' }]"
+            >
+              📊 Table View
+            </button>
+            <button 
+              @click="viewMode = 'cards'" 
+              :class="['btn', 'btn-view-mode', { active: viewMode === 'cards' }]"
+            >
+              🎴 Cards View
+            </button>
+          </div>
+        </div>
+
         <div v-if="rooms.length === 0" class="no-rooms">
           No active game rooms
         </div>
-        <div v-else class="rooms-grid">
-          <div v-for="room in gameRooms" :key="room.roomId" class="room-card">
-            <div class="room-header">
-              <span class="room-id">Room {{ room.roomId.slice(0, 8) }}</span>
-              <span class="room-status" :class="`status-${room.metadata?.gameStatus || 'waiting'}`">
-                {{ room.metadata?.gameStatus || 'waiting' }}
-              </span>
-            </div>
-            
-            <div class="room-details">
-              <div class="detail-row">
-                <span class="detail-label">Players:</span>
-                <span class="detail-value">{{ room.clients }}/{{ room.maxClients }}</span>
-              </div>
-              <div class="detail-row">
-                <span class="detail-label">Created:</span>
-                <span class="detail-value">{{ formatTime(room.createdAt) }}</span>
-              </div>
-            </div>
-
-            <div class="room-actions">
-              <button 
-                v-if="room.metadata?.gameStatus === 'playing'"
-                @click="pauseRoom(room.roomId)"
-                class="btn btn-action btn-pause"
-              >
-                ⏸️ Pause
-              </button>
-              <button 
-                v-if="room.metadata?.gameStatus === 'paused'"
-                @click="resumeRoom(room.roomId)"
-                class="btn btn-action btn-resume"
-              >
-                ▶️ Resume
-              </button>
-              <button 
-                @click="restartRoom(room.roomId)"
-                class="btn btn-action btn-restart"
-              >
-                🔄 Restart
-              </button>
-              <button 
-                @click="viewRoomDetails(room.roomId)"
-                class="btn btn-action btn-view"
-              >
-                📊 Details
-              </button>
-            </div>
-
-            <div v-if="roomDetails[room.roomId]" class="room-stats">
-              <h4>Room Statistics</h4>
-              <div v-if="roomDetails[room.roomId].players" class="players-list">
-                <div v-for="player in roomDetails[room.roomId].players" 
-                     :key="player.sessionId"
-                     class="player-row">
-                  <span class="player-name">{{ player.name }}</span>
-                  <span class="player-clicks">{{ player.clicks }} clicks</span>
-                  <button 
-                    @click="kickPlayer(room.roomId, player.sessionId)"
-                    class="btn btn-kick"
-                  >
-                    Kick
-                  </button>
-                </div>
-              </div>
-              <div class="stats-info">
-                <div class="stat-item">
-                  <span>Time Remaining:</span>
-                  <span>{{ formatSeconds(roomDetails[room.roomId].timeRemaining) }}</span>
-                </div>
-                <div v-if="roomDetails[room.roomId].winner" class="stat-item">
-                  <span>Winner:</span>
-                  <span class="winner-name">{{ roomDetails[room.roomId].winner }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
+        
+        <!-- Table View -->
+        <RoomsTable
+          v-if="viewMode === 'table' && gameRooms.length > 0"
+          :rooms="gameRooms"
+          :room-details="roomDetails"
+          @refresh="fetchData"
+          @view-room-modal="openRoomModal"
+        />
+        
+        <!-- Cards View -->
+        <div v-else-if="viewMode === 'cards' && gameRooms.length > 0" class="rooms-grid">
+          <RoomCard
+            v-for="room in gameRooms" 
+            :key="room.roomId" 
+            :room="room"
+            :room-details="roomDetails[room.roomId]"
+            @pause="pauseRoom"
+            @resume="resumeRoom"
+            @restart="restartRoom"
+            @view-details="viewRoomDetails"
+            @kick-player="kickPlayer"
+          />
         </div>
       </div>
 
@@ -129,6 +98,19 @@
         🎮 Go to Lobby
       </button>
     </div>
+
+    <!-- Room Details Modal -->
+    <RoomModal
+      :is-open="isModalOpen"
+      :room="selectedRoom"
+      :room-details="roomDetails[selectedRoomId]"
+      @close="closeRoomModal"
+      @pause="pauseRoom"
+      @resume="resumeRoom"
+      @restart="restartRoom"
+      @view-details="viewRoomDetails"
+      @kick-player="kickPlayer"
+    />
   </div>
 </template>
 
@@ -136,26 +118,34 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { colyseusService } from '../services/colyseus';
+import RoomCard from '../components/RoomCard.vue';
+import RoomsTable from '../components/RoomsTable.vue';
+import RoomModal from '../components/RoomModal.vue';
 
 const router = useRouter();
 const rooms = ref<any[]>([]);
 const roomDetails = ref<{ [key: string]: any }>({});
 const globalStats = ref<any>(null);
 const refreshInterval = ref<NodeJS.Timeout>();
+const selectedRoomId = ref<string>('');
+const isModalOpen = ref(false);
+const viewMode = ref<'cards' | 'table'>('table');
+const eventSource = ref<EventSource | null>(null);
+const isSSEConnected = ref(false);
+const reconnectAttempts = ref(0);
+const maxReconnectAttempts = 5;
 
 const gameRooms = computed(() => rooms.value.filter(r => r.name === 'game'));
 const lobbyRooms = computed(() => rooms.value.filter(r => r.name === 'lobby'));
 const totalPlayers = computed(() => rooms.value.reduce((sum, room) => sum + room.clients, 0));
 
 onMounted(() => {
-  fetchData();
-  refreshInterval.value = setInterval(fetchData, 3000);
+  // Try SSE first, fallback to polling if it fails
+  initSSE();
 });
 
 onUnmounted(() => {
-  if (refreshInterval.value) {
-    clearInterval(refreshInterval.value);
-  }
+  cleanup();
 });
 
 async function fetchData() {
@@ -173,7 +163,15 @@ async function fetchData() {
 }
 
 async function viewRoomDetails(roomId: string) {
+  // If we have SSE connection, details are already coming in real-time
+  if (isSSEConnected.value && roomDetails.value[roomId]) {
+    console.log('[Dashboard] Room details already available via SSE');
+    return;
+  }
+  
+  // Fallback to fetch if SSE is not connected or details are missing
   try {
+    console.log('[Dashboard] Fetching room details via API');
     const stats = await colyseusService.fetchRoomStats(roomId);
     roomDetails.value[roomId] = stats;
   } catch (error) {
@@ -217,16 +215,6 @@ async function kickPlayer(roomId: string, playerId: string) {
   }
 }
 
-function formatTime(timestamp: number): string {
-  const date = new Date(timestamp);
-  return date.toLocaleTimeString();
-}
-
-function formatSeconds(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
 
 function refreshData() {
   fetchData();
@@ -235,6 +223,116 @@ function refreshData() {
 function goToLobby() {
   router.push('/');
 }
+
+function initSSE() {
+  try {
+    console.log('[Dashboard] Initializing SSE connection...');
+    eventSource.value = new EventSource(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/dashboard-stream`);
+    
+    eventSource.value.onopen = () => {
+      console.log('[Dashboard] SSE connection opened');
+      isSSEConnected.value = true;
+      reconnectAttempts.value = 0;
+      // Clear any existing polling interval
+      if (refreshInterval.value) {
+        clearInterval(refreshInterval.value);
+        refreshInterval.value = undefined;
+      }
+    };
+
+    eventSource.value.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('[Dashboard] Received SSE data:', data);
+        
+        // Update rooms, room details, and global stats from SSE
+        rooms.value = data.rooms || [];
+        roomDetails.value = data.roomDetails || {};
+        globalStats.value = data.globalStats || null;
+      } catch (error) {
+        console.error('[Dashboard] Error parsing SSE data:', error);
+      }
+    };
+
+    eventSource.value.onerror = (error) => {
+      console.error('[Dashboard] SSE connection error:', error);
+      isSSEConnected.value = false;
+      
+      // Close the current connection
+      if (eventSource.value) {
+        eventSource.value.close();
+        eventSource.value = null;
+      }
+
+      // Attempt reconnection with exponential backoff
+      if (reconnectAttempts.value < maxReconnectAttempts) {
+        reconnectAttempts.value++;
+        const delay = Math.pow(2, reconnectAttempts.value) * 1000; // 2s, 4s, 8s, 16s, 32s
+        console.log(`[Dashboard] Attempting SSE reconnection in ${delay}ms (attempt ${reconnectAttempts.value})`);
+        
+        setTimeout(() => {
+          if (!isSSEConnected.value) {
+            initSSE();
+          }
+        }, delay);
+      } else {
+        console.log('[Dashboard] Max SSE reconnection attempts reached, falling back to polling');
+        fallbackToPolling();
+      }
+    };
+
+  } catch (error) {
+    console.error('[Dashboard] Failed to initialize SSE, falling back to polling:', error);
+    fallbackToPolling();
+  }
+}
+
+function fallbackToPolling() {
+  console.log('[Dashboard] Using polling fallback');
+  isSSEConnected.value = false;
+  
+  // Initial fetch
+  fetchData();
+  
+  // Set up polling interval
+  if (refreshInterval.value) {
+    clearInterval(refreshInterval.value);
+  }
+  refreshInterval.value = setInterval(fetchData, 3000);
+}
+
+function cleanup() {
+  // Close SSE connection
+  if (eventSource.value) {
+    eventSource.value.close();
+    eventSource.value = null;
+  }
+  
+  // Clear polling interval
+  if (refreshInterval.value) {
+    clearInterval(refreshInterval.value);
+  }
+  
+  isSSEConnected.value = false;
+}
+
+function openRoomModal(roomId: string) {
+  selectedRoomId.value = roomId;
+  // Auto-fetch room details if not already loaded and SSE is not connected
+  if (!roomDetails.value[roomId] && !isSSEConnected.value) {
+    viewRoomDetails(roomId);
+  }
+  isModalOpen.value = true;
+}
+
+function closeRoomModal() {
+  isModalOpen.value = false;
+  selectedRoomId.value = '';
+}
+
+const selectedRoom = computed(() => {
+  return gameRooms.value.find(room => room.roomId === selectedRoomId.value);
+});
 </script>
 
 <style scoped>
@@ -250,9 +348,58 @@ function goToLobby() {
   margin: 0 auto 40px;
 }
 
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
 .dashboard-header h1 {
   font-size: 2.5rem;
-  margin-bottom: 30px;
+  margin: 0;
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 8px 16px;
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.status-indicator.connected {
+  background: #4caf50;
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
+  animation: pulse 2s infinite;
+}
+
+.status-indicator.disconnected {
+  background: #ff9800;
+  box-shadow: 0 0 8px rgba(255, 152, 0, 0.6);
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.status-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .stats-summary {
@@ -292,10 +439,45 @@ function goToLobby() {
   margin-bottom: 40px;
 }
 
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
 .rooms-section h2,
 .lobby-section h2 {
   font-size: 1.8rem;
-  margin-bottom: 20px;
+  margin: 0;
+}
+
+.view-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-view-mode {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 14px;
+  transition: all 0.3s;
+}
+
+.btn-view-mode:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-view-mode.active {
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  border-color: rgba(255, 255, 255, 0.9);
 }
 
 .no-rooms {
@@ -312,80 +494,6 @@ function goToLobby() {
   gap: 20px;
 }
 
-.room-card {
-  background: white;
-  color: #333;
-  border-radius: 15px;
-  padding: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-}
-
-.room-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-  padding-bottom: 15px;
-  border-bottom: 2px solid #f0f0f0;
-}
-
-.room-id {
-  font-weight: bold;
-  font-family: monospace;
-}
-
-.room-status {
-  padding: 5px 15px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.status-waiting {
-  background: #e8f5e9;
-  color: #4caf50;
-}
-
-.status-playing {
-  background: #e3f2fd;
-  color: #2196f3;
-}
-
-.status-paused {
-  background: #fff3e0;
-  color: #ff9800;
-}
-
-.status-finished {
-  background: #f3e5f5;
-  color: #9c27b0;
-}
-
-.room-details {
-  margin-bottom: 20px;
-}
-
-.detail-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 5px 0;
-}
-
-.detail-label {
-  color: #666;
-}
-
-.detail-value {
-  font-weight: 600;
-}
-
-.room-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
 .btn {
   padding: 8px 16px;
   border: none;
@@ -396,91 +504,9 @@ function goToLobby() {
   transition: all 0.3s;
 }
 
-.btn-action {
-  flex: 1;
-  min-width: 80px;
-}
-
-.btn-pause {
-  background: #ff9800;
-  color: white;
-}
-
-.btn-resume {
-  background: #4caf50;
-  color: white;
-}
-
-.btn-restart {
-  background: #2196f3;
-  color: white;
-}
-
-.btn-view {
-  background: #9c27b0;
-  color: white;
-}
-
-.btn-kick {
-  background: #f44336;
-  color: white;
-  padding: 4px 12px;
-}
-
 .btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-}
-
-.room-stats {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 2px solid #f0f0f0;
-}
-
-.room-stats h4 {
-  margin-bottom: 15px;
-  color: #666;
-}
-
-.players-list {
-  margin-bottom: 15px;
-}
-
-.player-row {
-  display: flex;
-  align-items: center;
-  padding: 8px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  margin-bottom: 8px;
-}
-
-.player-name {
-  flex: 1;
-  font-weight: 600;
-}
-
-.player-clicks {
-  margin-right: 15px;
-  color: #666;
-}
-
-.stats-info {
-  background: #f8f9fa;
-  padding: 15px;
-  border-radius: 8px;
-}
-
-.stat-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 5px 0;
-}
-
-.winner-name {
-  color: #4caf50;
-  font-weight: bold;
 }
 
 .lobby-grid {

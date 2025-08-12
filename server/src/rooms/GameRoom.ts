@@ -2,27 +2,45 @@ import { Room, Client } from "colyseus";
 import { GameState } from "./schemas/GameState";
 import { GameStatus } from "../../../shared/types";
 import { NameManager } from "../utils/nameManager";
+import { broadcastDashboardUpdate } from "../adminApi";
 
 export class GameRoom extends Room<GameState> {
   maxClients = 2;
   private gameInterval?: NodeJS.Timeout;
+  private recentSystemMessage: { text: string; kind: string; timestamp: number } | null = null;
 
   private sysChat(text: string, kind: string) {
+    const timestamp = Date.now();
+    
+    // Store the most recent system message for dashboard (exclude round changes)
+    if (kind !== 'round_advance') {
+      this.recentSystemMessage = { text, kind, timestamp };
+    }
+    
     this.broadcast("chat", {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      id: `${timestamp}-${Math.random().toString(36).slice(2)}`,
       text,
       from: "Sistema",
       fromId: "system",
-      ts: Date.now(),
+      ts: timestamp,
       kind,
     } as any);
+    
+    // Notify dashboard immediately after system message
+    setTimeout(() => {
+      broadcastDashboardUpdate();
+    }, 50);
   }
 
   onCreate(options: any) {
     this.setState(new GameState());
     this.state.roomId = this.roomId;
     // Expose status via metadata for lobby listing
-    this.setMetadata({ gameStatus: 'waiting' });
+    this.setMetadata({ 
+      gameStatus: 'waiting',
+      currentRound: this.state.currentRound,
+      currentVariant: this.state.currentVariant
+    });
 
     // Variant selection (both players can change)
     this.onMessage("setVariant", (client, variant: string) => {
@@ -34,6 +52,12 @@ export class GameRoom extends Room<GameState> {
       if (this.state.gameStatus === GameStatus.FINISHED) {
         this.state.gameStatus = GameStatus.PLAYING;
       }
+      // Update metadata with new variant and round
+      this.setMetadata({ 
+        gameStatus: this.state.gameStatus === GameStatus.WAITING ? 'waiting' : 'playing',
+        currentRound: this.state.currentRound,
+        currentVariant: this.state.currentVariant
+      });
       // G2: Force offer by default
       if (variant === 'G2') {
         this.state.forcedByP2 = true;
@@ -145,6 +169,9 @@ export class GameRoom extends Room<GameState> {
           const rE = this.state.requestElote;
           if (p2.pavoTokens >= rP) { p2.pavoTokens -= rP; p1.pavoTokens += rP; }
           if (p2.eloteTokens >= rE) { p2.eloteTokens -= rE; p1.eloteTokens += rE; }
+          
+          // Notify dashboard of token changes
+          broadcastDashboardUpdate();
         }
         // Clear offer now
         this.clearOffer();
@@ -179,7 +206,11 @@ export class GameRoom extends Room<GameState> {
       if (assign && this.state.currentVariant === "G3" && this.state.p2Action === "snatch") {
         // increment P2 shame immediately
         const p2 = this.state.p2Id ? this.state.players.get(this.state.p2Id) : undefined;
-        if (p2) p2.shameTokens += 1;
+        if (p2) {
+          p2.shameTokens += 1;
+          // Notify dashboard of token change
+          broadcastDashboardUpdate();
+        }
       }
       // System chat feedback
       if (assign) this.sysChat('😶 P1 asignó un token de vergüenza a P2', 'p1_shame');
@@ -232,6 +263,16 @@ export class GameRoom extends Room<GameState> {
       roomId: this.roomId
     });
 
+    // System message for player join
+    if (this.state.players.size === 1) {
+      this.sysChat(`👋 ${playerName} se unió - esperando oponente`, 'player_join');
+    } else if (this.state.players.size === 2) {
+      this.sysChat(`🎯 Todos los jugadores conectados`, 'players_ready');
+    }
+
+    // Notify dashboard of player join
+    broadcastDashboardUpdate();
+
     if (this.state.players.size === 2 && this.state.gameStatus === GameStatus.WAITING) {
       this.startGame();
     }
@@ -245,6 +286,9 @@ export class GameRoom extends Room<GameState> {
       player.connected = false;
       // Don't release the name here - it's managed by the LobbyRoom
     }
+
+    // Notify dashboard of player leave
+    broadcastDashboardUpdate();
 
     if (this.state.gameStatus === GameStatus.PLAYING) {
       if (this.getConnectedPlayersCount() < 2) {
@@ -265,7 +309,13 @@ export class GameRoom extends Room<GameState> {
       } catch {}
       if (this.state.gameStatus === GameStatus.PAUSED && this.getConnectedPlayersCount() === 2) {
         this.state.resumeGame();
-        this.setMetadata({ gameStatus: 'playing' });
+        this.setMetadata({ 
+          gameStatus: 'playing',
+          currentRound: this.state.currentRound,
+          currentVariant: this.state.currentVariant
+        });
+        // Notify dashboard of game resume
+        broadcastDashboardUpdate();
       }
     }).catch(() => {
       // reconnection window expired; nothing to do here
@@ -305,7 +355,11 @@ export class GameRoom extends Room<GameState> {
   private startGame() {
     console.log(`[GameRoom] Starting demo game in room ${this.roomId}`);
     this.state.startGame();
-    this.setMetadata({ gameStatus: 'playing' });
+    this.setMetadata({ 
+      gameStatus: 'playing',
+      currentRound: this.state.currentRound,
+      currentVariant: this.state.currentVariant
+    });
     // G2: Force offer by default when starting game
     if (this.state.currentVariant === 'G2') {
       this.state.forcedByP2 = true;
@@ -313,19 +367,35 @@ export class GameRoom extends Room<GameState> {
     this.broadcast("gameStart");
     // System chat: start at round 1
     this.sysChat(`▶️ Ronda ${this.state.currentRound}/3`, 'round_advance');
+    // Notify dashboard of game start (with some delay to ensure sysChat is processed)
+    setTimeout(() => {
+      broadcastDashboardUpdate();
+    }, 100);
   }
 
   private pauseGame() {
     console.log(`[GameRoom] Pausing game in room ${this.roomId}`);
     this.state.pauseGame();
     this.broadcast("gamePaused");
-    this.setMetadata({ gameStatus: 'paused' });
+    this.setMetadata({ 
+      gameStatus: 'paused',
+      currentRound: this.state.currentRound,
+      currentVariant: this.state.currentVariant
+    });
+    // Notify dashboard of game pause
+    broadcastDashboardUpdate();
   }
 
   private endGame() {
     console.log(`[GameRoom] Demo game ended in room ${this.roomId}`);
     this.broadcast("gameEnd", {});
-    this.setMetadata({ gameStatus: 'finished' });
+    this.setMetadata({ 
+      gameStatus: 'finished',
+      currentRound: this.state.currentRound,
+      currentVariant: this.state.currentVariant
+    });
+    // Notify dashboard of game end
+    broadcastDashboardUpdate();
   }
   
   private resolveP2Action() {
@@ -351,6 +421,8 @@ export class GameRoom extends Room<GameState> {
         p2.eloteTokens -= this.state.requestElote; p1.eloteTokens += this.state.requestElote;
       }
       this.clearOffer();
+      // Notify dashboard of token changes
+      broadcastDashboardUpdate();
     }
     else if (p2Action === 'reject') {
       // No changes
@@ -363,6 +435,8 @@ export class GameRoom extends Room<GameState> {
         p1.eloteTokens -= this.state.offerElote; p2.eloteTokens += this.state.offerElote;
       }
       // Keep offer data around for potential G4 report; it will be cleared on report or next round
+      // Notify dashboard of token changes
+      broadcastDashboardUpdate();
     }
   }
 
@@ -386,7 +460,11 @@ export class GameRoom extends Room<GameState> {
 
     this.state.restartGame();
     this.broadcast("gameRestart");
-    this.setMetadata({ gameStatus: 'waiting' });
+    this.setMetadata({ 
+      gameStatus: 'waiting',
+      currentRound: this.state.currentRound,
+      currentVariant: this.state.currentVariant
+    });
 
     if (this.state.players.size === 2) {
       setTimeout(() => this.startGame(), 500);
@@ -411,7 +489,7 @@ export class GameRoom extends Room<GameState> {
   }
 
   getState() {
-    return {
+    const result = {
       roomId: this.roomId,
       players: Array.from(this.state.players.values()).map(p => ({
         sessionId: p.sessionId,
@@ -420,10 +498,12 @@ export class GameRoom extends Room<GameState> {
         pavoTokens: p.pavoTokens,
         eloteTokens: p.eloteTokens,
         shameTokens: p.shameTokens,
+        color: p.color,
       })),
       gameStatus: this.state.gameStatus,
       variant: this.state.currentVariant,
       round: this.state.currentRound,
+      recentSystemMessage: this.recentSystemMessage,
       decisions: {
         p1Action: this.state.p1Action,
         p2Action: this.state.p2Action,
@@ -440,14 +520,24 @@ export class GameRoom extends Room<GameState> {
       },
       outcome: {}
     };
+    
+    return result;
   }
 
   private advanceRound() {
     if (this.state.currentRound < 3) {
       this.state.currentRound += 1;
       this.state.resetRound();
+      // Update metadata with new round
+      this.setMetadata({ 
+        gameStatus: 'playing',
+        currentRound: this.state.currentRound,
+        currentVariant: this.state.currentVariant
+      });
       this.broadcast("roundStarted", { round: this.state.currentRound });
       this.sysChat(`▶️ Ronda ${this.state.currentRound}/3`, 'round_advance');
+      // Notify dashboard of round advance
+      broadcastDashboardUpdate();
     } else {
       this.state.finishGame();
       this.endGame();
