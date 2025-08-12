@@ -252,7 +252,24 @@ export class GameRoom extends Room<GameState> {
       }
     }
 
-    this.allowReconnection(client, 30);
+    // Allow reconnection; when it happens, mark player connected and resume if both are present
+    const reconnection = this.allowReconnection(client, 30);
+    reconnection.then((newClient) => {
+      const p = this.state.players.get(client.sessionId);
+      if (p) {
+        p.connected = true;
+      }
+      // Provide basic identity back to the reconnecting client
+      try {
+        newClient.send("playerInfo", { sessionId: client.sessionId, name: p?.name || "player", roomId: this.roomId });
+      } catch {}
+      if (this.state.gameStatus === GameStatus.PAUSED && this.getConnectedPlayersCount() === 2) {
+        this.state.resumeGame();
+        this.setMetadata({ gameStatus: 'playing' });
+      }
+    }).catch(() => {
+      // reconnection window expired; nothing to do here
+    });
   }
 
   async onReconnect(client: Client) {

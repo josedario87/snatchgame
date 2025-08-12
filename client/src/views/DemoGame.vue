@@ -54,6 +54,15 @@
         <button @click="leaveGame" class="btn btn-leave">Leave Game</button>
       </div>
     </div>
+
+    <!-- Pause overlay to block all interactions -->
+    <div v-if="gameStatus === 'paused'" class="pause-overlay">
+      <div class="pause-box">
+        <div class="icon">⏸️</div>
+        <div class="title">Juego en pausa</div>
+        <div class="hint">Esperando a que ambos jugadores estén conectados…</div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -232,4 +241,11 @@ function leaveGame() {
 .spinner { width:40px; height:40px; border: 4px solid #eee; border-top:4px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 8px; }
 @keyframes spin { 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
 .outcome-box { display:flex; gap: 24px; background:#f5f5f5; padding: 12px; border-radius: 8px; }
+
+/* Full-screen overlay while paused */
+.pause-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); display:flex; align-items:center; justify-content:center; z-index: 1000; }
+.pause-box { background: white; color:#333; border-radius: 16px; padding: 24px 32px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+.pause-box .icon { font-size: 48px; margin-bottom: 8px; }
+.pause-box .title { font-weight: 800; font-size: 20px; }
+.pause-box .hint { margin-top: 6px; color:#666; font-size: 14px; }
 </style>
