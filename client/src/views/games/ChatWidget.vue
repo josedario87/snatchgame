@@ -228,15 +228,25 @@ function scrollToBottomSoon() {
   });
 }
 
-onMounted(() => {
-  const room = colyseusService.gameRoom.value;
-  if (room) {
-    const handler = (data: any) => handleIncoming(data);
-    room.onMessage("chat", handler);
-    removeHandler = () => {
-      try { room.off?.("chat", handler as any); } catch(e) {}
-    };
+function bindToRoom(room: any) {
+  // Detach previous
+  if (removeHandler) { try { removeHandler(); } catch {}
+    removeHandler = null;
   }
+  if (!room) return;
+  const handler = (data: any) => handleIncoming(data);
+  try { room.onMessage("chat", handler); } catch {}
+  removeHandler = () => {
+    try { room.off?.("chat", handler as any); } catch(e) {}
+  };
+}
+
+onMounted(() => {
+  bindToRoom(colyseusService.gameRoom.value);
+});
+
+watch(() => colyseusService.gameRoom.value, (room) => {
+  bindToRoom(room);
 });
 
 onUnmounted(() => {
