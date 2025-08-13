@@ -25,6 +25,75 @@
     </div>
 
     <div class="dashboard-content">
+      <!-- Global Controls Section -->
+      <div class="global-controls-section">
+        <div class="section-header">
+          <h2>🌐 Global Controls</h2>
+        </div>
+        <div class="global-controls-grid">
+          <div class="control-group">
+            <h3>Game State</h3>
+            <div class="control-buttons">
+              <button 
+                @click="pauseAllGames" 
+                class="btn btn-pause"
+                :disabled="isLoadingGlobal"
+              >
+                ⏸️ Pause All Games
+              </button>
+              <button 
+                @click="resumeAllGames" 
+                class="btn btn-resume"
+                :disabled="isLoadingGlobal"
+              >
+                ▶️ Resume All Games
+              </button>
+              <button 
+                @click="restartAllGames" 
+                class="btn btn-restart"
+                :disabled="isLoadingGlobal"
+              >
+                🔄 Restart All Games
+              </button>
+            </div>
+          </div>
+          
+          <div class="control-group">
+            <h3>Game Variant</h3>
+            <div class="variant-controls">
+              <select v-model="selectedGlobalVariant" class="variant-selector">
+                <option value="">Select Variant</option>
+                <option value="G1">G1 - Basic Game</option>
+                <option value="G2">G2 - Forced Offers</option>
+                <option value="G3">G3 - Shame Tokens</option>
+                <option value="G4">G4 - Judge System</option>
+                <option value="G5">G5 - Advanced</option>
+              </select>
+              <button 
+                @click="changeGlobalVariant" 
+                class="btn btn-variant"
+                :disabled="!selectedGlobalVariant || isLoadingGlobal"
+              >
+                🎮 Change All to {{ selectedGlobalVariant }}
+              </button>
+            </div>
+          </div>
+          
+          <div class="control-group">
+            <h3>Player Management</h3>
+            <div class="control-buttons">
+              <button 
+                @click="sendAllToLobby" 
+                class="btn btn-lobby-all"
+                :disabled="isLoadingGlobal"
+              >
+                🏠 Send All to Lobby
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="rooms-section">
         <div class="section-header">
           <h2>Active Game Rooms</h2>
@@ -134,6 +203,8 @@ const eventSource = ref<EventSource | null>(null);
 const isSSEConnected = ref(false);
 const reconnectAttempts = ref(0);
 const maxReconnectAttempts = 5;
+const selectedGlobalVariant = ref('');
+const isLoadingGlobal = ref(false);
 
 const gameRooms = computed(() => rooms.value.filter(r => r.name === 'game'));
 const lobbyRooms = computed(() => rooms.value.filter(r => r.name === 'lobby'));
@@ -222,6 +293,119 @@ function refreshData() {
 
 function goToLobby() {
   router.push('/');
+}
+
+// Global control functions
+async function pauseAllGames() {
+  if (!confirm('Are you sure you want to pause ALL active games?')) return;
+  
+  isLoadingGlobal.value = true;
+  try {
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/admin/pause-all`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (!response.ok) throw new Error('Failed to pause all games');
+    
+    console.log('All games paused successfully');
+    await fetchData();
+  } catch (error) {
+    console.error('Failed to pause all games:', error);
+    alert('Failed to pause all games. Check console for details.');
+  } finally {
+    isLoadingGlobal.value = false;
+  }
+}
+
+async function resumeAllGames() {
+  if (!confirm('Are you sure you want to resume ALL paused games?')) return;
+  
+  isLoadingGlobal.value = true;
+  try {
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/admin/resume-all`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (!response.ok) throw new Error('Failed to resume all games');
+    
+    console.log('All games resumed successfully');
+    await fetchData();
+  } catch (error) {
+    console.error('Failed to resume all games:', error);
+    alert('Failed to resume all games. Check console for details.');
+  } finally {
+    isLoadingGlobal.value = false;
+  }
+}
+
+async function restartAllGames() {
+  if (!confirm('Are you sure you want to RESTART ALL active games? This will reset all progress!')) return;
+  
+  isLoadingGlobal.value = true;
+  try {
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/admin/restart-all`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (!response.ok) throw new Error('Failed to restart all games');
+    
+    console.log('All games restarted successfully');
+    await fetchData();
+  } catch (error) {
+    console.error('Failed to restart all games:', error);
+    alert('Failed to restart all games. Check console for details.');
+  } finally {
+    isLoadingGlobal.value = false;
+  }
+}
+
+async function changeGlobalVariant() {
+  if (!selectedGlobalVariant.value) return;
+  if (!confirm(`Are you sure you want to change ALL games to variant ${selectedGlobalVariant.value}?`)) return;
+  
+  isLoadingGlobal.value = true;
+  try {
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/admin/change-variant`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variant: selectedGlobalVariant.value })
+    });
+    
+    if (!response.ok) throw new Error('Failed to change global variant');
+    
+    console.log(`All games changed to variant ${selectedGlobalVariant.value} successfully`);
+    await fetchData();
+  } catch (error) {
+    console.error('Failed to change global variant:', error);
+    alert('Failed to change global variant. Check console for details.');
+  } finally {
+    isLoadingGlobal.value = false;
+  }
+}
+
+async function sendAllToLobby() {
+  if (!confirm('Are you sure you want to send ALL players back to the lobby? This will end all active games!')) return;
+  
+  isLoadingGlobal.value = true;
+  try {
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/admin/send-all-to-lobby`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (!response.ok) throw new Error('Failed to send all players to lobby');
+    
+    console.log('All players sent to lobby successfully');
+    await fetchData();
+  } catch (error) {
+    console.error('Failed to send all players to lobby:', error);
+    alert('Failed to send all players to lobby. Check console for details.');
+  } finally {
+    isLoadingGlobal.value = false;
+  }
 }
 
 function initSSE() {
@@ -432,6 +616,83 @@ const selectedRoom = computed(() => {
 .dashboard-content {
   max-width: 1400px;
   margin: 0 auto;
+}
+
+.global-controls-section {
+  margin-bottom: 40px;
+}
+
+.global-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.control-group {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+}
+
+.control-group h3 {
+  margin: 0 0 15px 0;
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.control-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.variant-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.variant-selector {
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.btn-pause {
+  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+  color: white;
+}
+
+.btn-resume {
+  background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+  color: white;
+}
+
+.btn-restart {
+  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+  color: white;
+}
+
+.btn-variant {
+  background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
+  color: white;
+}
+
+.btn-lobby-all {
+  background: linear-gradient(135deg, #2196f3 0%, #1976d2 100%);
+  color: white;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 .rooms-section,

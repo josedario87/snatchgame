@@ -49,7 +49,7 @@ adminRouter.post("/rooms/:roomId/pause", async (req: Request, res: Response) => 
       return res.status(404).json({ error: "Room not found" });
     }
 
-    await matchMaker.remoteRoomCall(roomId, "broadcast", ["admin:pause"]);
+    await matchMaker.remoteRoomCall(roomId, "executeAdminCommand", ["pause"]);
     
     res.json({ success: true, message: "Room paused" });
   } catch (error) {
@@ -67,7 +67,7 @@ adminRouter.post("/rooms/:roomId/resume", async (req: Request, res: Response) =>
       return res.status(404).json({ error: "Room not found" });
     }
 
-    await matchMaker.remoteRoomCall(roomId, "broadcast", ["admin:resume"]);
+    await matchMaker.remoteRoomCall(roomId, "executeAdminCommand", ["resume"]);
     
     res.json({ success: true, message: "Room resumed" });
   } catch (error) {
@@ -85,7 +85,7 @@ adminRouter.post("/rooms/:roomId/restart", async (req: Request, res: Response) =
       return res.status(404).json({ error: "Room not found" });
     }
 
-    await matchMaker.remoteRoomCall(roomId, "broadcast", ["admin:restart"]);
+    await matchMaker.remoteRoomCall(roomId, "executeAdminCommand", ["restart"]);
     
     res.json({ success: true, message: "Room restarted" });
   } catch (error) {
@@ -103,7 +103,7 @@ adminRouter.post("/rooms/:roomId/kick/:playerId", async (req: Request, res: Resp
       return res.status(404).json({ error: "Room not found" });
     }
 
-    await matchMaker.remoteRoomCall(roomId, "broadcast", ["admin:kick", playerId]);
+    await matchMaker.remoteRoomCall(roomId, "executeAdminCommand", ["kick", playerId]);
     
     res.json({ success: true, message: `Player ${playerId} kicked` });
   } catch (error) {
@@ -126,6 +126,169 @@ adminRouter.get("/stats", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("[AdminAPI] Error fetching stats:", error);
     res.status(500).json({ error: "Failed to fetch stats" });
+  }
+});
+
+// Global admin endpoints
+adminRouter.post("/admin/pause-all", async (req: Request, res: Response) => {
+  try {
+    const gameRooms = await matchMaker.query({ name: "game" });
+    
+    if (gameRooms.length === 0) {
+      return res.json({ success: true, message: "No game rooms to pause" });
+    }
+
+    const promises = gameRooms.map(room => 
+      matchMaker.remoteRoomCall(room.roomId, "executeAdminCommand", ["pause"])
+        .catch(error => console.error(`Failed to pause room ${room.roomId}:`, error))
+    );
+
+    await Promise.allSettled(promises);
+    
+    res.json({ 
+      success: true, 
+      message: `Pause command sent to ${gameRooms.length} game rooms` 
+    });
+  } catch (error) {
+    console.error("[AdminAPI] Error pausing all games:", error);
+    res.status(500).json({ error: "Failed to pause all games" });
+  }
+});
+
+adminRouter.post("/admin/resume-all", async (req: Request, res: Response) => {
+  try {
+    const gameRooms = await matchMaker.query({ name: "game" });
+    
+    if (gameRooms.length === 0) {
+      return res.json({ success: true, message: "No game rooms to resume" });
+    }
+
+    const promises = gameRooms.map(room => 
+      matchMaker.remoteRoomCall(room.roomId, "executeAdminCommand", ["resume"])
+        .catch(error => console.error(`Failed to resume room ${room.roomId}:`, error))
+    );
+
+    await Promise.allSettled(promises);
+    
+    res.json({ 
+      success: true, 
+      message: `Resume command sent to ${gameRooms.length} game rooms` 
+    });
+  } catch (error) {
+    console.error("[AdminAPI] Error resuming all games:", error);
+    res.status(500).json({ error: "Failed to resume all games" });
+  }
+});
+
+adminRouter.post("/admin/restart-all", async (req: Request, res: Response) => {
+  try {
+    const gameRooms = await matchMaker.query({ name: "game" });
+    
+    if (gameRooms.length === 0) {
+      return res.json({ success: true, message: "No game rooms to restart" });
+    }
+
+    const promises = gameRooms.map(room => 
+      matchMaker.remoteRoomCall(room.roomId, "executeAdminCommand", ["restart"])
+        .catch(error => console.error(`Failed to restart room ${room.roomId}:`, error))
+    );
+
+    await Promise.allSettled(promises);
+    
+    res.json({ 
+      success: true, 
+      message: `Restart command sent to ${gameRooms.length} game rooms` 
+    });
+  } catch (error) {
+    console.error("[AdminAPI] Error restarting all games:", error);
+    res.status(500).json({ error: "Failed to restart all games" });
+  }
+});
+
+adminRouter.post("/admin/change-variant", async (req: Request, res: Response) => {
+  try {
+    const { variant } = req.body;
+    
+    if (!variant || !['G1', 'G2', 'G3', 'G4', 'G5'].includes(variant)) {
+      return res.status(400).json({ error: "Invalid variant. Must be one of: G1, G2, G3, G4, G5" });
+    }
+
+    const gameRooms = await matchMaker.query({ name: "game" });
+    
+    if (gameRooms.length === 0) {
+      return res.json({ success: true, message: "No game rooms to change variant" });
+    }
+
+    const promises = gameRooms.map(room => 
+      matchMaker.remoteRoomCall(room.roomId, "executeAdminCommand", ["setVariant", variant])
+        .catch(error => console.error(`Failed to change variant in room ${room.roomId}:`, error))
+    );
+
+    await Promise.allSettled(promises);
+    
+    res.json({ 
+      success: true, 
+      message: `Variant change to ${variant} sent to ${gameRooms.length} game rooms` 
+    });
+  } catch (error) {
+    console.error("[AdminAPI] Error changing global variant:", error);
+    res.status(500).json({ error: "Failed to change global variant" });
+  }
+});
+
+adminRouter.post("/admin/send-all-to-lobby", async (req: Request, res: Response) => {
+  try {
+    const gameRooms = await matchMaker.query({ name: "game" });
+    
+    if (gameRooms.length === 0) {
+      return res.json({ success: true, message: "No game rooms to close" });
+    }
+
+    console.log(`[AdminAPI] Sending ${gameRooms.length} game rooms to lobby and disposing them`);
+
+    // Send command to all game rooms
+    const promises = gameRooms.map(room => 
+      matchMaker.remoteRoomCall(room.roomId, "executeAdminCommand", ["sendToLobby"])
+        .catch(error => console.error(`Failed to send room ${room.roomId} to lobby:`, error))
+    );
+
+    await Promise.allSettled(promises);
+    
+    // Wait a bit for rooms to dispose themselves, then force dispose any remaining
+    setTimeout(async () => {
+      try {
+        const remainingGameRooms = await matchMaker.query({ name: "game" });
+        
+        if (remainingGameRooms.length > 0) {
+          console.log(`[AdminAPI] Force disposing ${remainingGameRooms.length} remaining game rooms`);
+          
+          const disposePromises = remainingGameRooms.map(room => 
+            matchMaker.remoteRoomCall(room.roomId, "disconnect").catch(() => {
+              // If remote call fails, try direct disposal
+              console.log(`[AdminAPI] Force disposing room ${room.roomId} directly`);
+            })
+          );
+          
+          await Promise.allSettled(disposePromises);
+        }
+        
+        // Broadcast dashboard update after cleanup
+        setTimeout(() => {
+          broadcastDashboardUpdate();
+        }, 500);
+        
+      } catch (error) {
+        console.error("[AdminAPI] Error in cleanup phase:", error);
+      }
+    }, 3000);
+    
+    res.json({ 
+      success: true, 
+      message: `Send to lobby command sent to ${gameRooms.length} game rooms. Rooms will be disposed.` 
+    });
+  } catch (error) {
+    console.error("[AdminAPI] Error sending all to lobby:", error);
+    res.status(500).json({ error: "Failed to send all players to lobby" });
   }
 });
 

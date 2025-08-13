@@ -200,8 +200,42 @@ onMounted(() => {
     // Game paused, could update UI state if needed
   });
 
+  room.onMessage("gameRestart", () => {
+    // Game restarted, could update UI state if needed
+  });
+
   room.onMessage("variantChanged", (data: { variant: string }) => {
     currentVariant.value = data.variant as any;
+  });
+
+  // Handle room closure/disconnection
+  room.onLeave((code) => {
+    console.log('[DemoGame] Room disconnected with code:', code);
+    // Always clean up local storage when room closes
+    try { 
+      if (typeof window !== 'undefined') { 
+        window.localStorage.removeItem('snatch.game.roomId'); 
+        window.localStorage.removeItem('snatch.game.sessionId'); 
+      } 
+    } catch {}
+    
+    // If not on lobby page, redirect there
+    if (router.currentRoute.value.path !== '/') {
+      console.log('[DemoGame] Room closed, redirecting to lobby');
+      router.push('/');
+    }
+  });
+
+  room.onError((code, message) => {
+    console.error('[DemoGame] Room error:', code, message);
+    // On error, also redirect to lobby
+    try { 
+      if (typeof window !== 'undefined') { 
+        window.localStorage.removeItem('snatch.game.roomId'); 
+        window.localStorage.removeItem('snatch.game.sessionId'); 
+      } 
+    } catch {}
+    router.push('/');
   });
   }
 });
@@ -223,6 +257,7 @@ function onReport(val: boolean) { colyseusService.report(val); }
 function onAssignShame(val: boolean) { colyseusService.assignShame(val); }
 
 function leaveGame() { 
+  console.log('[DemoGame] User manually leaving game');
   colyseusService.leaveGame();
   try { if (typeof window !== 'undefined') { window.localStorage.removeItem('snatch.game.roomId'); window.localStorage.removeItem('snatch.game.sessionId'); } } catch {}
   router.push('/');

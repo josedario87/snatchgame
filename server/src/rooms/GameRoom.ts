@@ -221,18 +221,6 @@ export class GameRoom extends Room<GameState> {
 
     // Removed nextRound handler - rounds now auto-advance
 
-    this.onMessage("admin:pause", () => {
-      this.state.pauseGame();
-    });
-
-    this.onMessage("admin:resume", () => {
-      this.state.resumeGame();
-    });
-
-    this.onMessage("admin:restart", () => {
-      this.handleRestart();
-    });
-
     this.onMessage("admin:kick", (client, playerId: string) => {
       this.handleKick(playerId);
     });
@@ -477,6 +465,111 @@ export class GameRoom extends Room<GameState> {
     const client = this.clients.find(c => c.sessionId === playerId);
     if (client) {
       client.leave(1000);
+    }
+  }
+
+  private handleSetVariant(variant: string) {
+    console.log(`[GameRoom] Admin set variant to ${variant} in room ${this.roomId}`);
+    
+    this.state.currentVariant = variant;
+    this.state.currentRound = 1;
+    this.state.resetRound();
+    
+    if (this.state.gameStatus === GameStatus.FINISHED) {
+      this.state.gameStatus = GameStatus.PLAYING;
+    }
+    
+    this.setMetadata({ 
+      gameStatus: this.state.gameStatus === GameStatus.WAITING ? 'waiting' : 'playing',
+      currentRound: this.state.currentRound,
+      currentVariant: this.state.currentVariant
+    });
+    
+    if (variant === 'G2') {
+      this.state.forcedByP2 = true;
+    }
+    
+    this.broadcast("variantChanged", { variant });
+    this.sysChat(`🔄 Admin cambió variante a ${variant}`, 'admin_variant_change');
+    
+    broadcastDashboardUpdate();
+  }
+
+  private handleSendToLobby() {
+    console.log(`[GameRoom] Admin send all players to lobby from room ${this.roomId}`);
+    
+    this.sysChat('👋 Admin envía a todos al lobby', 'admin_send_lobby');
+    
+    // Give players a moment to see the message
+    setTimeout(() => {
+      // Disconnect all clients, which will send them back to lobby
+      this.clients.forEach(client => {
+        try {
+          client.leave(1000);
+        } catch (error) {
+          console.error(`Failed to disconnect client ${client.sessionId}:`, error);
+        }
+      });
+      
+      // Dispose the room
+      setTimeout(() => {
+        this.disconnect();
+      }, 500);
+    }, 1000);
+  }
+
+  // Public method for admin API calls
+  executeAdminCommand(command: string, ...args: any[]) {
+    console.log(`[GameRoom] Executing admin command: ${command} with args:`, args);
+    
+    switch (command) {
+      case 'pause':
+        this.state.pauseGame();
+        this.broadcast("gamePaused");
+        this.setMetadata({ 
+          gameStatus: 'paused',
+          currentRound: this.state.currentRound,
+          currentVariant: this.state.currentVariant
+        });
+        this.sysChat('⏸️ Admin pausó el juego', 'admin_pause');
+        broadcastDashboardUpdate();
+        break;
+        
+      case 'resume':
+        this.state.resumeGame();
+        this.setMetadata({ 
+          gameStatus: 'playing',
+          currentRound: this.state.currentRound,
+          currentVariant: this.state.currentVariant
+        });
+        this.sysChat('▶️ Admin reanudó el juego', 'admin_resume');
+        broadcastDashboardUpdate();
+        break;
+        
+      case 'restart':
+        this.handleRestart();
+        break;
+        
+      case 'setVariant':
+        const variant = args[0];
+        if (variant) {
+          this.handleSetVariant(variant);
+        }
+        break;
+        
+      case 'sendToLobby':
+        this.handleSendToLobby();
+        break;
+        
+      case 'kick':
+        const playerId = args[0];
+        if (playerId) {
+          this.handleKick(playerId);
+        }
+        break;
+        
+      default:
+        console.warn(`[GameRoom] Unknown admin command: ${command}`);
     }
   }
 
