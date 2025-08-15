@@ -17,7 +17,7 @@ COPY . .
 
 # Compilar servidor y cliente
 RUN cd server && npm run build
-RUN cd client && npm run build
+RUN cd client && npx vite build
 
 # Instalar serve para servir archivos estáticos
 RUN npm install -g serve

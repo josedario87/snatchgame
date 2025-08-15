@@ -1,4 +1,4 @@
-import Loki from "lokijs";
+import Loki, { Collection } from "lokijs";
 
 export interface LocalPlayerDoc {
   id: string; // fixed id for local profile

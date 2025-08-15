@@ -9,12 +9,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "vue": "latest",
-    "vue-router": "latest",
     "colyseus.js": "latest",
-    "lokijs": "^1.5.12"
+    "lokijs": "^1.5.12",
+    "vue": "latest",
+    "vue-router": "latest"
   },
   "devDependencies": {
+    "@types/lokijs": "^1.5.14",
+    "@types/node": "^24.3.0",
     "@vitejs/plugin-vue": "latest",
     "@vue/tsconfig": "latest",
     "typescript": "latest",

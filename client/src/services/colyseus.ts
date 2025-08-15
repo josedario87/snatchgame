@@ -161,11 +161,11 @@ class ColyseusService {
           });
           
           // Ensure the room id is set
-          if (!gameRoom.id) {
-            gameRoom.id = data.roomId;
+          if (!(gameRoom as any).id) {
+            (gameRoom as any).id = data.roomId;
           }
           
-          console.log('Successfully joined game room:', gameRoom.id, gameRoom);
+          console.log('Successfully joined game room:', (gameRoom as any).id, gameRoom);
           console.log('Setting gameRoom.value...');
           this.gameRoom.value = gameRoom;
           this.currentRoom = gameRoom;

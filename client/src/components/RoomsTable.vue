@@ -51,15 +51,15 @@
             <td class="tokens-cell">
               <div v-if="getRoomDetails(room.roomId)?.players?.[0]" class="player-section">
                 <div class="player-name-chip" :style="{ 
-                  backgroundColor: getPlayerColor(getRoomDetails(room.roomId).players[0], 0),
-                  color: getReadableTextColor(getPlayerColor(getRoomDetails(room.roomId).players[0], 0))
+                  backgroundColor: getPlayerColor(getRoomDetails(room.roomId)?.players?.[0], 0),
+                  color: getReadableTextColor(getPlayerColor(getRoomDetails(room.roomId)?.players?.[0], 0))
                 }">
-                  {{ getRoomDetails(room.roomId).players[0].name }}
+                  {{ getRoomDetails(room.roomId)?.players?.[0]?.name }}
                 </div>
                 <div class="token-summary">
-                  <span class="token pavo">🦃 <AnimatedNumber :value="getRoomDetails(room.roomId).players[0].pavoTokens || 0" :duration-ms="800" :animate-on-mount="true" /></span>
-                  <span class="token elote">🌽 <AnimatedNumber :value="getRoomDetails(room.roomId).players[0].eloteTokens || 0" :duration-ms="800" :animate-on-mount="true" /></span>
-                  <span class="token shame">😳 <AnimatedNumber :value="getRoomDetails(room.roomId).players[0].shameTokens || 0" :duration-ms="800" :animate-on-mount="true" /></span>
+                  <span class="token pavo">🦃 <AnimatedNumber :value="getRoomDetails(room.roomId)?.players?.[0]?.pavoTokens || 0" :duration-ms="800" :animate-on-mount="true" /></span>
+                  <span class="token elote">🌽 <AnimatedNumber :value="getRoomDetails(room.roomId)?.players?.[0]?.eloteTokens || 0" :duration-ms="800" :animate-on-mount="true" /></span>
+                  <span class="token shame">😳 <AnimatedNumber :value="getRoomDetails(room.roomId)?.players?.[0]?.shameTokens || 0" :duration-ms="800" :animate-on-mount="true" /></span>
                 </div>
               </div>
               <div v-else class="no-data">-</div>
@@ -67,15 +67,15 @@
             <td class="tokens-cell">
               <div v-if="getRoomDetails(room.roomId)?.players?.[1]" class="player-section">
                 <div class="player-name-chip" :style="{ 
-                  backgroundColor: getPlayerColor(getRoomDetails(room.roomId).players[1], 1),
-                  color: getReadableTextColor(getPlayerColor(getRoomDetails(room.roomId).players[1], 1))
+                  backgroundColor: getPlayerColor(getRoomDetails(room.roomId)?.players?.[1], 1),
+                  color: getReadableTextColor(getPlayerColor(getRoomDetails(room.roomId)?.players?.[1], 1))
                 }">
-                  {{ getRoomDetails(room.roomId).players[1].name }}
+                  {{ getRoomDetails(room.roomId)?.players?.[1]?.name }}
                 </div>
                 <div class="token-summary">
-                  <span class="token pavo">🦃 <AnimatedNumber :value="getRoomDetails(room.roomId).players[1].pavoTokens || 0" :duration-ms="800" :animate-on-mount="true" /></span>
-                  <span class="token elote">🌽 <AnimatedNumber :value="getRoomDetails(room.roomId).players[1].eloteTokens || 0" :duration-ms="800" :animate-on-mount="true" /></span>
-                  <span class="token shame">😳 <AnimatedNumber :value="getRoomDetails(room.roomId).players[1].shameTokens || 0" :duration-ms="800" :animate-on-mount="true" /></span>
+                  <span class="token pavo">🦃 <AnimatedNumber :value="getRoomDetails(room.roomId)?.players?.[1]?.pavoTokens || 0" :duration-ms="800" :animate-on-mount="true" /></span>
+                  <span class="token elote">🌽 <AnimatedNumber :value="getRoomDetails(room.roomId)?.players?.[1]?.eloteTokens || 0" :duration-ms="800" :animate-on-mount="true" /></span>
+                  <span class="token shame">😳 <AnimatedNumber :value="getRoomDetails(room.roomId)?.players?.[1]?.shameTokens || 0" :duration-ms="800" :animate-on-mount="true" /></span>
                 </div>
               </div>
               <div v-else class="no-data">-</div>
