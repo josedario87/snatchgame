@@ -1,6 +1,7 @@
 import { Request, Response, Router } from "express";
 import { matchMaker } from "colyseus";
 import { GameRoom } from "./rooms/GameRoom";
+import { NameManager } from "./utils/nameManager";
 
 // SSE connections storage
 const sseClients = new Set<Response>();
@@ -289,6 +290,145 @@ adminRouter.post("/admin/send-all-to-lobby", async (req: Request, res: Response)
   } catch (error) {
     console.error("[AdminAPI] Error sending all to lobby:", error);
     res.status(500).json({ error: "Failed to send all players to lobby" });
+  }
+});
+
+adminRouter.post("/admin/shuffle-players", async (req: Request, res: Response) => {
+  try {
+    console.log("[AdminAPI] Starting player shuffle...");
+    
+    // 1. Get all game rooms and their players
+    const gameRooms = await matchMaker.query({ name: "game" });
+    
+    if (gameRooms.length === 0) {
+      return res.json({ success: true, message: "No game rooms to shuffle" });
+    }
+
+    console.log(`[AdminAPI] Found ${gameRooms.length} game rooms for shuffle`);
+
+    // 2. Extract all players from all rooms
+    const allPlayers: any[] = [];
+    const roomsInfo: { roomId: string; variant: string }[] = [];
+    
+    for (const room of gameRooms) {
+      try {
+        const roomState = await matchMaker.remoteRoomCall(room.roomId, "getState");
+        
+        roomsInfo.push({
+          roomId: room.roomId,
+          variant: roomState.variant || 'G1'
+        });
+        
+        // Collect players with their full info
+        if (roomState.players && roomState.players.length > 0) {
+          roomState.players.forEach((player: any) => {
+            allPlayers.push({
+              uuid: player.uuid || player.sessionId, // Use actual UUID if available
+              name: player.name,
+              color: player.color,
+              sessionId: player.sessionId
+            });
+          });
+        }
+      } catch (error) {
+        console.error(`Failed to get state for room ${room.roomId}:`, error);
+      }
+    }
+
+    console.log(`[AdminAPI] Collected ${allPlayers.length} players for shuffle`);
+
+    if (allPlayers.length === 0) {
+      return res.json({ success: true, message: "No players found to shuffle" });
+    }
+
+    // 3. Shuffle players array
+    const shuffledPlayers = [...allPlayers];
+    for (let i = shuffledPlayers.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledPlayers[i], shuffledPlayers[j]] = [shuffledPlayers[j], shuffledPlayers[i]];
+    }
+
+    // 4. Create groups of 2 players
+    const playerGroups: any[][] = [];
+    const extraPlayers: any[] = [];
+    
+    for (let i = 0; i < shuffledPlayers.length; i += 2) {
+      if (i + 1 < shuffledPlayers.length) {
+        playerGroups.push([shuffledPlayers[i], shuffledPlayers[i + 1]]);
+      } else {
+        extraPlayers.push(shuffledPlayers[i]);
+      }
+    }
+
+    console.log(`[AdminAPI] Created ${playerGroups.length} player groups, ${extraPlayers.length} extra players`);
+
+    // 5. Start shuffle process
+    NameManager.getInstance().startShuffle();
+
+    // 6. Assign players to rooms and roles randomly
+    const assignments: { [roomId: string]: { p1: any; p2: any } } = {};
+    
+    for (let i = 0; i < playerGroups.length && i < roomsInfo.length; i++) {
+      const group = playerGroups[i];
+      const roomInfo = roomsInfo[i];
+      
+      // Randomly assign P1 and P2 roles
+      const [player1, player2] = Math.random() < 0.5 ? [group[0], group[1]] : [group[1], group[0]];
+      
+      assignments[roomInfo.roomId] = {
+        p1: { ...player1, role: 'P1' },
+        p2: { ...player2, role: 'P2' }
+      };
+      
+      // Store assignments in NameManager for lobby redirects
+      NameManager.getInstance().assignPlayerToRoom(player1.uuid, roomInfo.roomId, 'P1');
+      NameManager.getInstance().assignPlayerToRoom(player2.uuid, roomInfo.roomId, 'P2');
+    }
+
+    // 7. Clear all rooms first
+    console.log("[AdminAPI] Clearing all game rooms for shuffle...");
+    const clearPromises = gameRooms.map(room => 
+      matchMaker.remoteRoomCall(room.roomId, "executeAdminCommand", ["clearForShuffle"])
+        .catch(error => console.error(`Failed to clear room ${room.roomId}:`, error))
+    );
+
+    await Promise.allSettled(clearPromises);
+
+    // 8. Wait a bit for rooms to clear, then assign new players
+    setTimeout(async () => {
+      console.log("[AdminAPI] Assigning shuffled players to rooms...");
+      
+      const assignPromises = Object.entries(assignments).map(([roomId, assignment]) => 
+        matchMaker.remoteRoomCall(roomId, "executeAdminCommand", ["assignShuffledPlayers", assignment])
+          .catch(error => console.error(`Failed to assign players to room ${roomId}:`, error))
+      );
+
+      await Promise.allSettled(assignPromises);
+      
+      // Handle extra players - they go to lobby
+      extraPlayers.forEach(player => {
+        console.log(`[AdminAPI] Player ${player.name} will remain in lobby (odd number of players)`);
+      });
+      
+      console.log("[AdminAPI] Player shuffle completed!");
+      
+      // Cleanup after a delay
+      setTimeout(() => {
+        NameManager.getInstance().endShuffle();
+        broadcastDashboardUpdate();
+      }, 10000); // 10 seconds for all players to reconnect
+      
+    }, 3000); // 3 seconds delay
+
+    res.json({ 
+      success: true, 
+      message: `Shuffle initiated for ${allPlayers.length} players across ${gameRooms.length} rooms. ${playerGroups.length} pairs created, ${extraPlayers.length} players will go to lobby.` 
+    });
+    
+  } catch (error) {
+    console.error("[AdminAPI] Error shuffling players:", error);
+    NameManager.getInstance().endShuffle(); // Cleanup on error
+    res.status(500).json({ error: "Failed to shuffle players" });
   }
 });
 

@@ -83,6 +83,13 @@
             <h3>Player Management</h3>
             <div class="control-buttons">
               <button 
+                @click="shufflePlayers" 
+                class="btn btn-shuffle"
+                :disabled="isLoadingGlobal"
+              >
+                🎲 Shuffle Players
+              </button>
+              <button 
                 @click="sendAllToLobby" 
                 class="btn btn-lobby-all"
                 :disabled="isLoadingGlobal"
@@ -386,6 +393,30 @@ async function changeGlobalVariant() {
   }
 }
 
+async function shufflePlayers() {
+  if (!confirm('Are you sure you want to SHUFFLE all players? This will randomly redistribute players between rooms and assign new roles!')) return;
+  
+  isLoadingGlobal.value = true;
+  try {
+    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/admin/shuffle-players`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (!response.ok) throw new Error('Failed to shuffle players');
+    
+    const result = await response.json();
+    console.log('Players shuffled successfully:', result.message);
+    alert(`Shuffle completed! ${result.message}`);
+    await fetchData();
+  } catch (error) {
+    console.error('Failed to shuffle players:', error);
+    alert('Failed to shuffle players. Check console for details.');
+  } finally {
+    isLoadingGlobal.value = false;
+  }
+}
+
 async function sendAllToLobby() {
   if (!confirm('Are you sure you want to send ALL players back to the lobby? This will end all active games!')) return;
   
@@ -680,6 +711,11 @@ const selectedRoom = computed(() => {
 
 .btn-variant {
   background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
+  color: white;
+}
+
+.btn-shuffle {
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
   color: white;
 }
 

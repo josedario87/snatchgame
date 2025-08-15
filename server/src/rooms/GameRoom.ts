@@ -8,6 +8,11 @@ export class GameRoom extends Room<GameState> {
   maxClients = 2;
   private gameInterval?: NodeJS.Timeout;
   private recentSystemMessage: { text: string; kind: string; timestamp: number } | null = null;
+  
+  // For shuffle functionality
+  private expectedShuffledPlayers: { p1?: any; p2?: any } = {};
+  private isWaitingForShuffledPlayers: boolean = false;
+  private sessionToUuid: Map<string, string> = new Map();
 
   private sysChat(text: string, kind: string) {
     const timestamp = Date.now();
@@ -228,10 +233,21 @@ export class GameRoom extends Room<GameState> {
 
   onJoin(client: Client, options: any) {
     console.log(`[GameRoom] ${client.sessionId} joined room ${this.roomId} with name: ${options.playerName}`);
+    
+    // Special handling for shuffled players
+    if (this.isWaitingForShuffledPlayers && options.uuid) {
+      return this.handleShuffledPlayerJoin(client, options);
+    }
+    
     // Prevent new joins if game already started or two players are registered
     if (this.state.gameStatus !== GameStatus.WAITING || this.state.players.size >= 2) {
       try { client.leave(1000); } catch {}
       return;
+    }
+
+    // Store UUID mapping if provided
+    if (options.uuid) {
+      this.sessionToUuid.set(client.sessionId, options.uuid);
     }
 
     // Use the playerName passed from the lobby - don't generate a new one!
@@ -568,9 +584,122 @@ export class GameRoom extends Room<GameState> {
         }
         break;
         
+      case 'clearForShuffle':
+        this.handleClearForShuffle();
+        break;
+        
+      case 'assignShuffledPlayers':
+        const playerAssignments = args[0];
+        this.handleAssignShuffledPlayers(playerAssignments);
+        break;
+        
       default:
         console.warn(`[GameRoom] Unknown admin command: ${command}`);
     }
+  }
+
+  private handleClearForShuffle() {
+    console.log(`[GameRoom] Clearing room ${this.roomId} for shuffle`);
+    
+    this.sysChat('🎲 Admin está reorganizando jugadores...', 'admin_shuffle');
+    
+    // Give players a moment to see the message
+    setTimeout(() => {
+      // Disconnect all clients with special code for shuffle
+      this.clients.forEach(client => {
+        try {
+          client.leave(1002); // Special code for shuffle
+        } catch (error) {
+          console.error(`Failed to disconnect client ${client.sessionId}:`, error);
+        }
+      });
+      
+      // Reset room state but keep variant
+      const currentVariant = this.state.currentVariant;
+      this.state.restartGame();
+      this.state.currentVariant = currentVariant;
+      
+      // Prepare for new players
+      this.isWaitingForShuffledPlayers = true;
+      this.expectedShuffledPlayers = {};
+      
+      broadcastDashboardUpdate();
+    }, 1000);
+  }
+
+  private handleAssignShuffledPlayers(assignments: { p1?: any; p2?: any }) {
+    console.log(`[GameRoom] Assigning shuffled players to room ${this.roomId}:`, assignments);
+    
+    this.expectedShuffledPlayers = assignments;
+    this.isWaitingForShuffledPlayers = true;
+    
+    // Update metadata
+    this.setMetadata({ 
+      gameStatus: 'waiting',
+      currentRound: 1,
+      currentVariant: this.state.currentVariant
+    });
+  }
+
+  private handleShuffledPlayerJoin(client: Client, options: any) {
+    const uuid = options.uuid;
+    console.log(`[GameRoom] Shuffled player ${uuid} trying to join room ${this.roomId}`);
+    
+    // Check if this player is expected in this room
+    let expectedRole: 'P1' | 'P2' | null = null;
+    
+    if (this.expectedShuffledPlayers.p1?.uuid === uuid) {
+      expectedRole = 'P1';
+    } else if (this.expectedShuffledPlayers.p2?.uuid === uuid) {
+      expectedRole = 'P2';
+    }
+    
+    if (!expectedRole) {
+      console.log(`[GameRoom] Player ${uuid} not expected in room ${this.roomId}, rejecting`);
+      try { client.leave(1000); } catch {}
+      return;
+    }
+    
+    // Get player info from expected data
+    const expectedPlayerData = expectedRole === 'P1' ? this.expectedShuffledPlayers.p1 : this.expectedShuffledPlayers.p2;
+    
+    console.log(`[GameRoom] Adding shuffled player ${uuid} as ${expectedRole} in room ${this.roomId}`);
+    
+    // Add player with the expected role
+    const player = this.state.addPlayer(client.sessionId, expectedPlayerData.name);
+    player.role = expectedRole;
+    player.color = expectedPlayerData.color || "#667eea";
+    
+    // Set role IDs
+    if (expectedRole === 'P1') {
+      this.state.p1Id = client.sessionId;
+    } else {
+      this.state.p2Id = client.sessionId;
+    }
+    
+    client.send("playerInfo", {
+      sessionId: client.sessionId,
+      name: expectedPlayerData.name,
+      roomId: this.roomId
+    });
+    
+    // Remove from NameManager assignment once joined
+    NameManager.getInstance().removePlayerRoomAssignment(uuid);
+    
+    // Check if room is complete
+    if (this.state.players.size === 2) {
+      this.isWaitingForShuffledPlayers = false;
+      this.expectedShuffledPlayers = {};
+      this.sysChat(`🎲 Reorganización completa - ¡comenzando partida!`, 'shuffle_complete');
+      
+      setTimeout(() => {
+        this.startGame();
+      }, 1000);
+    } else {
+      this.sysChat(`🎲 Esperando más jugadores reorganizados...`, 'shuffle_waiting');
+    }
+    
+    broadcastDashboardUpdate();
   }
 
   private getConnectedPlayersCount(): number {
@@ -586,6 +715,7 @@ export class GameRoom extends Room<GameState> {
       roomId: this.roomId,
       players: Array.from(this.state.players.values()).map(p => ({
         sessionId: p.sessionId,
+        uuid: this.sessionToUuid.get(p.sessionId) || p.sessionId, // Include UUID for shuffle
         name: p.name,
         role: p.role,
         pavoTokens: p.pavoTokens,

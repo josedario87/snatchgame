@@ -38,6 +38,33 @@ export class LobbyRoom extends Room<LobbyState> {
     if (options.uuid) {
       this.sessionToUuid.set(client.sessionId, options.uuid);
       
+      // Check for shuffle redirect FIRST
+      if (NameManager.getInstance().isShuffleInProgress()) {
+        const assignment = NameManager.getInstance().getPlayerRoomAssignment(options.uuid);
+        if (assignment) {
+          console.log(`[LobbyRoom] Redirecting shuffled player ${options.uuid} to room ${assignment.roomId} as ${assignment.role}`);
+          
+          // Add player temporarily to lobby state
+          const existingName = NameManager.getInstance().getPlayerName(options.uuid);
+          this.state.addPlayer(client.sessionId, existingName || "");
+          
+          // Send welcome first
+          client.send("welcome", {
+            sessionId: client.sessionId,
+            name: existingName || "",
+            color: this.state.players.get(client.sessionId)?.color || "#667eea"
+          });
+          
+          // Then immediately redirect to assigned room
+          setTimeout(() => {
+            this.handleJoinRoom(client, assignment.roomId);
+          }, 500);
+          
+          return;
+        }
+      }
+      
+      // Normal lobby join flow
       // Check if this UUID already has a name
       const existingName = NameManager.getInstance().getPlayerName(options.uuid);
       this.state.addPlayer(client.sessionId, existingName || "");

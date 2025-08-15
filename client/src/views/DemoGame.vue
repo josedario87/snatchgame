@@ -211,6 +211,23 @@ onMounted(() => {
   // Handle room closure/disconnection
   room.onLeave((code) => {
     console.log('[DemoGame] Room disconnected with code:', code);
+    
+    // Handle shuffle disconnection specially
+    if (code === 1002) {
+      console.log('[DemoGame] Disconnected for player shuffle - will redirect to lobby');
+      try { 
+        if (typeof window !== 'undefined') { 
+          window.localStorage.removeItem('snatch.game.roomId'); 
+          window.localStorage.removeItem('snatch.game.sessionId'); 
+        } 
+      } catch {}
+      
+      // Redirect to lobby and let it handle the shuffle redirect
+      router.push('/');
+      return;
+    }
+    
+    // Normal disconnection handling
     // Always clean up local storage when room closes
     try { 
       if (typeof window !== 'undefined') { 

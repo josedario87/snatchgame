@@ -1,6 +1,10 @@
 export class NameManager {
   private static instance: NameManager;
   private uuidToName: Map<string, string> = new Map();
+  
+  // For shuffle functionality
+  private roomAssignments: Map<string, { roomId: string; role: 'P1' | 'P2' }> = new Map();
+  private shuffleInProgress: boolean = false;
 
   private constructor() {}
 
@@ -54,5 +58,36 @@ export class NameManager {
 
   getAllActivePlayers(): string[] {
     return Array.from(this.uuidToName.values());
+  }
+
+  // Shuffle functionality methods
+  startShuffle(): void {
+    this.shuffleInProgress = true;
+    this.roomAssignments.clear();
+  }
+
+  endShuffle(): void {
+    this.shuffleInProgress = false;
+    this.roomAssignments.clear();
+  }
+
+  isShuffleInProgress(): boolean {
+    return this.shuffleInProgress;
+  }
+
+  assignPlayerToRoom(uuid: string, roomId: string, role: 'P1' | 'P2'): void {
+    this.roomAssignments.set(uuid, { roomId, role });
+  }
+
+  getPlayerRoomAssignment(uuid: string): { roomId: string; role: 'P1' | 'P2' } | undefined {
+    return this.roomAssignments.get(uuid);
+  }
+
+  removePlayerRoomAssignment(uuid: string): void {
+    this.roomAssignments.delete(uuid);
+  }
+
+  getAllRoomAssignments(): Map<string, { roomId: string; role: 'P1' | 'P2' }> {
+    return new Map(this.roomAssignments);
   }
 }
