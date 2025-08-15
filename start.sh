@@ -2,7 +2,7 @@
 
 # Iniciar el servidor Colyseus en background
 echo "Starting Colyseus server..."
-cd /app/server && node dist/index.js &
+cd /app/server && node dist/server/src/index.js &
 
 # Esperar un momento para que el servidor inicie
 sleep 2
