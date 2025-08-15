@@ -37,13 +37,14 @@ class ColyseusService {
   constructor() {
     const defaultHost = typeof window !== "undefined" ? window.location.hostname : "localhost";
     const defaultProtocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "wss" : "ws";
-    const defaultPort = 3000;
-    const fallbackUrl = `${defaultProtocol}://${defaultHost}:${defaultPort}`;
+    const httpProtocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "https" : "http";
+    
+    // Para producción, usar las rutas de nginx sin puerto
+    const fallbackUrl = `${defaultProtocol}://${defaultHost}/ws`;
+    const apiFallback = `${httpProtocol}://${defaultHost}/api`;
+    
     const url = import.meta.env.VITE_WS_URL || fallbackUrl;
     this.client = new Client(url);
-
-    const httpProtocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "https" : "http";
-    const apiFallback = `${httpProtocol}://${defaultHost}:${defaultPort}/api`;
     this.apiBase = (import.meta.env as any).VITE_API_URL || apiFallback;
   }
 
