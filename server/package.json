@@ -1,0 +1,25 @@
+{
+  "name": "snatchgame-server",
+  "version": "1.0.0",
+  "description": "Competitive clicker game server",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "npx ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@colyseus/monitor": "latest",
+    "@colyseus/schema": "latest",
+    "colyseus": "latest",
+    "cors": "latest",
+    "express": "latest"
+  },
+  "devDependencies": {
+    "@types/cors": "latest",
+    "@types/express": "latest",
+    "@types/node": "latest",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "latest"
+  }
+}

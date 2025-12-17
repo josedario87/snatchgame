@@ -1,0 +1,29 @@
+{
+  "name": "snatchgame-client",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "colyseus.js": "latest",
+    "html2canvas": "^1.4.1",
+    "lokijs": "^1.5.12",
+    "qrcode": "^1.5.4",
+    "vue": "latest",
+    "vue-router": "latest"
+  },
+  "devDependencies": {
+    "@types/lokijs": "^1.5.14",
+    "@types/node": "^24.3.0",
+    "@types/qrcode": "^1.5.5",
+    "@vitejs/plugin-vue": "latest",
+    "@vue/tsconfig": "latest",
+    "typescript": "latest",
+    "vite": "latest",
+    "vue-tsc": "latest"
+  }
+}

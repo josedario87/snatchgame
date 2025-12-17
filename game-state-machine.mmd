@@ -1,0 +1,70 @@
+stateDiagram-v2
+  [*] --> DemoPlay
+  
+  DemoPlay --> Waiting : quickPlay()
+  Waiting --> Playing : 2 jugadores conectados
+  
+  state Playing {
+    [*] --> VariantSelection
+    VariantSelection --> RoundActive : seleccionar G1-G5
+    
+    state RoundActive {
+      [*] --> OfferPhase
+      
+      state OfferPhase {
+        [*] --> CheckForce
+        CheckForce --> ForcedOffer : G2 && forcedByP2
+        CheckForce --> OptionalOffer : !forcedByP2
+        ForcedOffer --> ProposeOffer : debe ofrecer
+        OptionalOffer --> ProposeOffer : ofrecer
+        OptionalOffer --> NoOffer : no ofrecer
+      }
+      
+      ProposeOffer --> P2Decision : offerActive=true
+      NoOffer --> NextRound : auto-avance
+      
+      state P2Decision {
+        [*] --> WaitingP2
+        WaitingP2 --> Accept : p2Action
+        WaitingP2 --> Reject : p2Action
+        WaitingP2 --> Snatch : p2Action
+      }
+      
+      Accept --> TokenExchange : intercambiar
+      Reject --> NoChange : sin cambios
+      Snatch --> CheckVariant : robar tokens
+      
+      TokenExchange --> NextRound : auto-avance
+      NoChange --> NextRound : auto-avance
+      
+      state CheckVariant {
+        [*] --> CheckG3G4
+        CheckG3G4 --> ShameDecision : G3
+        CheckG3G4 --> ReportDecision : G4
+        CheckG3G4 --> NextRound : otros
+      }
+      
+      ShameDecision --> NextRound : asignar/no asignar
+      ReportDecision --> Sanction : denunciar
+      ReportDecision --> NextRound : no denunciar
+      Sanction --> NextRound : aplicar sanción inversa
+    }
+    
+    NextRound --> RoundActive : round < 3
+    NextRound --> Finished : round = 3
+  }
+  
+  Finished --> VariantSelection : cambiar variante reinicia
+  Playing --> Finished : 3 rondas completadas
+  
+  note right of VariantSelection
+    Cualquier jugador puede
+    cambiar variante en
+    cualquier momento
+  end note
+  
+  note right of P2Decision
+    Una sola acción
+    permitida por oferta
+  end note
+
